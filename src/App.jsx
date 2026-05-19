@@ -249,15 +249,15 @@ export default function InnerGenApp() {
     window.history.replaceState({}, "", "/");
 
     // Restore quiz state saved before Stripe redirect
-    const savedAnswers = sessionStorage.getItem("ig_answers");
-    const savedPoints  = sessionStorage.getItem("ig_points");
-    const savedTier    = sessionStorage.getItem("ig_tier") || tier;
-    sessionStorage.removeItem("ig_answers");
-    sessionStorage.removeItem("ig_points");
-    sessionStorage.removeItem("ig_tier");
+    const savedAnswers = localStorage.getItem("ig_answers");
+    const savedPoints  = localStorage.getItem("ig_points");
+    const savedTier    = localStorage.getItem("ig_tier") || tier;
+    localStorage.removeItem("ig_answers");
+    localStorage.removeItem("ig_points");
+    localStorage.removeItem("ig_tier");
 
     const restoredAnswers = savedAnswers ? JSON.parse(savedAnswers) : [];
-    const restoredPoints  = savedPoints  ? parseInt(savedPoints, 10) : 0;
+    const restoredPoints  = savedPoints  ? parseInt(savedPoints, 10) : 20; // default to mid-range if missing
 
     // Update state with restored values
     setAnswers(restoredAnswers);
@@ -276,7 +276,9 @@ export default function InnerGenApp() {
           setBookTier(confirmedTier);
           setScreen("book");
           const lvl = getLevel(restoredPoints);
-          const answerSummary = restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ") || "Assessment completed";
+          const answerSummary = restoredAnswers.length > 0 
+            ? restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ") 
+            : "Assessment completed — generate a powerful personalized guide for someone at the growth-oriented level";
           const maxTokens = confirmedTier === "spark" ? 1600 : confirmedTier === "rise" ? 2800 : 6000;
           const prompts = {
             spark: `You are a human potential guide. Create a personal Spark Guide for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment scores: ${answerSummary}.\n\nYour job is simple: help this person take clear, practical steps toward a richer, more meaningful life. Be warm, direct, and specific to their answers. No fluff. No jargon. Write in second person. Do not mention AI or technology.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nTwo paragraphs. What their answers reveal about where they are right now — honest, warm, specific. What's working. What's ready to shift.\n\nYOUR CORE STRENGTH\nThe one strength their answers show most clearly. Name it simply. Explain in plain language why it matters for their life. Give one specific thing to do this week to use it.\n\nYOUR 7-DAY STARTER PLAN\nSeven daily practices. Each one named, one sentence of why it works, one exact instruction.\n\nDay 1: [name] — [why it works] — [exact instruction]\nDay 2: [name] — [why it works] — [exact instruction]\nDay 3: [name] — [why it works] — [exact instruction]\nDay 4: [name] — [why it works] — [exact instruction]\nDay 5: [name] — [why it works] — [exact instruction]\nDay 6: [name] — [why it works] — [exact instruction]\nDay 7: [name] — [why it works] — [exact instruction]\n\nYOUR DAILY QUESTION\nOne question to ask yourself every morning. Explain in two sentences why this question matters for them.\n\nYOUR NEXT BOOK\nOne real book. Title and author. Two sentences on exactly why it fits where they are right now.`,
@@ -511,10 +513,10 @@ Write as if the most honest and caring coach they have ever met wrote this after
   function openPaywall(tierId) { setPaywallTier(tierId); setPaywall(true); }
 
   function handleStripeRedirect(tierId) {
-    // Save quiz state before leaving — restored when Stripe redirects back
-    sessionStorage.setItem("ig_answers", JSON.stringify(answers));
-    sessionStorage.setItem("ig_points", String(points));
-    sessionStorage.setItem("ig_tier", tierId);
+    // Save quiz state before leaving — localStorage survives page redirects on all browsers
+    localStorage.setItem("ig_answers", JSON.stringify(answers));
+    localStorage.setItem("ig_points", String(points));
+    localStorage.setItem("ig_tier", tierId);
     window.location.href = PAYMENT_LINKS[tierId];
   }
 
