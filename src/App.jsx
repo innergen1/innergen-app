@@ -24,7 +24,7 @@ const T = {
 };
 
 const FONT_H = "'Century Gothic', 'AppleGothic', 'Trebuchet MS', sans-serif";
-const FONT_B = "'Nunito', 'Segoe UI', system-ui, sans-serif";
+const FONT_B = "'Lato', 'Helvetica Neue', Arial, sans-serif";
 const FONT = FONT_H;
 
 // ─── QUIZ ─────────────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ function StarField() {
 
 // ─── GLOBAL CSS ───────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #04070E; overflow-x: hidden; }
   ::-webkit-scrollbar { width: 3px; }
@@ -238,39 +238,75 @@ export default function InnerGenApp() {
   const level    = getLevel(points);
 
   // ── PAYMENT VERIFICATION — runs once on load ───────────────────────────────
-  // When Stripe redirects back after payment, the URL contains:
-  // ?session_id=cs_xxx&tier=spark (or rise / sovereign)
-  // This block reads those params, verifies with our serverless function,
-  // then auto-launches the Magic Book for that tier.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
     const tier = params.get("tier");
 
-    if (!sessionId || !tier) return; // normal load — do nothing
+    if (!sessionId || !tier) return;
 
-    // Clean the URL immediately so refresh doesn't re-trigger
+    // Clean the URL immediately
     window.history.replaceState({}, "", "/");
 
+    // Restore quiz state saved before Stripe redirect
+    const savedAnswers = sessionStorage.getItem("ig_answers");
+    const savedPoints  = sessionStorage.getItem("ig_points");
+    const savedTier    = sessionStorage.getItem("ig_tier") || tier;
+    sessionStorage.removeItem("ig_answers");
+    sessionStorage.removeItem("ig_points");
+    sessionStorage.removeItem("ig_tier");
+
+    const restoredAnswers = savedAnswers ? JSON.parse(savedAnswers) : [];
+    const restoredPoints  = savedPoints  ? parseInt(savedPoints, 10) : 0;
+
+    // Update state with restored values
+    setAnswers(restoredAnswers);
+    setPoints(restoredPoints);
     setScreen("verifying");
-    setBookTier(tier);
+    setBookTier(savedTier);
 
     fetch(`/api/verify-session?session_id=${sessionId}`)
       .then(res => res.json())
       .then(data => {
         if (data.verified) {
-          const confirmedTier = data.tier || tier;
+          const confirmedTier = data.tier || savedTier;
           setPurchased(p => ({ ...p, [confirmedTier]: true }));
-          generateBook(confirmedTier);
+          // Generate book with restored state inline
+          setBookLoading(true);
+          setBookTier(confirmedTier);
+          setScreen("book");
+          const lvl = getLevel(restoredPoints);
+          const answerSummary = restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ") || "Assessment completed";
+          const maxTokens = confirmedTier === "spark" ? 1600 : confirmedTier === "rise" ? 2800 : 6000;
+          const prompts = {
+            spark: `You are a human potential guide. Create a personal Spark Guide for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment scores: ${answerSummary}.\n\nYour job is simple: help this person take clear, practical steps toward a richer, more meaningful life. Be warm, direct, and specific to their answers. No fluff. No jargon. Write in second person. Do not mention AI or technology.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nTwo paragraphs. What their answers reveal about where they are right now — honest, warm, specific. What's working. What's ready to shift.\n\nYOUR CORE STRENGTH\nThe one strength their answers show most clearly. Name it simply. Explain in plain language why it matters for their life. Give one specific thing to do this week to use it.\n\nYOUR 7-DAY STARTER PLAN\nSeven daily practices. Each one named, one sentence of why it works, one exact instruction.\n\nDay 1: [name] — [why it works] — [exact instruction]\nDay 2: [name] — [why it works] — [exact instruction]\nDay 3: [name] — [why it works] — [exact instruction]\nDay 4: [name] — [why it works] — [exact instruction]\nDay 5: [name] — [why it works] — [exact instruction]\nDay 6: [name] — [why it works] — [exact instruction]\nDay 7: [name] — [why it works] — [exact instruction]\n\nYOUR DAILY QUESTION\nOne question to ask yourself every morning. Explain in two sentences why this question matters for them.\n\nYOUR NEXT BOOK\nOne real book. Title and author. Two sentences on exactly why it fits where they are right now.`,
+            rise: `You are a human potential guide. Create a Rise Guide for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment: ${answerSummary}.\n\nWarm, direct, specific. No fluff. Second person. No mention of AI.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nThree paragraphs. Where they are now. What's strong. What's ready to transform.\n\nYOUR THREE CORE STRENGTHS\nThree strengths. For each: name it, explain why it matters, give one specific practice.\n\nYOUR SHADOW PATTERN\nThe one limiting pattern. Name it plainly. Why it forms. One daily practice to dissolve it.\n\nYOUR 30-DAY PLAN\nFour weeks with theme and daily practices.\n\nWHAT CHANGES AT 30 DAYS\nFour specific observable things they will notice.\n\nYOUR FOUR RESOURCES\nFour real books with title, author, and why it fits their profile.`,
+            sovereign: `You are a human potential guide. Create a complete Sovereign Life Architecture for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment: ${answerSummary}.\n\nPractical, specific, immediately useful. Warm, intelligent, direct. Second person. No mention of AI.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nThree paragraphs. Full picture of where they are. What's exceptional. What's ready to break open.\n\nYOUR GENIUS PROFILE\nTwo natural ways their mind works best. Name each. One way to use each more deliberately.\n\nYOUR THREE CORE STRENGTHS\nEach named. Why it matters. One practice to develop it.\n\nYOUR SHADOW PATTERN\nNamed plainly. Why it formed. One daily practice to dissolve it.\n\nYOUR IDENTITY SHIFT\nWho they are becoming. Two paragraphs.\n\nYOUR WEALTH MINDSET\nHow their thinking affects money. Two to three practical shifts.\n\nYOUR RELATIONSHIP EDGE\nStrongest relational quality and biggest growth edge. One practice each.\n\nYOUR 90-DAY ROADMAP\nThree months. Each with theme and weekly focuses.\n\nYOUR DAILY PRACTICES\nFive core practices. Named, why it works, exact instruction.\n\nYOUR RESOURCES\nFive books, one podcast, one documentary. One sentence each on why it fits.\n\nYOUR MONTHLY CHECK-IN QUESTIONS\nFour questions to measure real growth.`,
+          };
+          fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: maxTokens,
+              messages: [{ role: "user", content: prompts[confirmedTier] }]
+            })
+          })
+          .then(r => r.json())
+          .then(d => {
+            setBookContent(d.content?.map(b => b.text || "").join("") || "Your guide is ready.");
+            setBookLoading(false);
+          })
+          .catch(() => {
+            setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
+            setBookLoading(false);
+          });
         } else {
-          // Payment not verified — go home with a gentle message
           setScreen("splash");
           alert("We couldn't verify your payment. Please contact support at admin@yuliantigroup.com if you were charged.");
         }
       })
-      .catch(() => {
-        setScreen("splash");
-      });
+      .catch(() => setScreen("splash"));
   }, []);
 
   // ── ANSWER HANDLER ─────────────────────────────────────────────────────────
@@ -475,7 +511,10 @@ Write as if the most honest and caring coach they have ever met wrote this after
   function openPaywall(tierId) { setPaywallTier(tierId); setPaywall(true); }
 
   function handleStripeRedirect(tierId) {
-    // Redirect to Stripe — they will come back to our success URL
+    // Save quiz state before leaving — restored when Stripe redirects back
+    sessionStorage.setItem("ig_answers", JSON.stringify(answers));
+    sessionStorage.setItem("ig_points", String(points));
+    sessionStorage.setItem("ig_tier", tierId);
     window.location.href = PAYMENT_LINKS[tierId];
   }
 
@@ -557,21 +596,21 @@ Write as if the most honest and caring coach they have ever met wrote this after
       <div style={{ ...inner, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <div style={{ ...card, padding: "44px 30px", textAlign: "center", animation: "fadeUp 0.65s ease", width: "100%" }}>
           <div style={{ fontSize: 54, marginBottom: 10, animation: "beat 3s infinite" }}>⚡</div>
-          <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 5, color: T.goldDim, marginBottom: 14, textTransform: "uppercase" }}>InnerGen · Human Potential Lab</div>
+          <div style={{ fontFamily: FONT_B, fontSize: 11, letterSpacing: 3, color: "rgba(242,201,76,0.7)", marginBottom: 14, textTransform: "uppercase", fontWeight: 700, whiteSpace: "nowrap" }}>InnerGen · Human Potential Lab</div>
           <h1 style={{ fontFamily: FONT, fontSize: 32, fontWeight: 700, lineHeight: 1.2, marginBottom: 16, color: T.text }}>
             Discover What Science Says<br />
             <span style={{ color: T.gold }}>You're Actually Capable Of</span>
           </h1>
-          <p style={{ fontFamily: FONT, color: T.muted, fontSize: 14, lineHeight: 1.85, marginBottom: 28 }}>
+          <p style={{ fontFamily: FONT_B, color: "rgba(237,232,212,0.82)", fontSize: 15, lineHeight: 1.85, marginBottom: 28, fontWeight: 400 }}>
             8 questions grounded in 200 years of neuroscience, psychology, and human potential research. No performance. No judgment. Just truth about who you already are.
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 32 }}>
             {["Always free", "8 questions · 5 min", "Personalized for you"].map(t => (
-              <span key={t} style={{ fontFamily: FONT, background: "rgba(242,201,76,0.08)", border: `1px solid ${T.border}`, borderRadius: 50, padding: "5px 14px", fontSize: 11, color: T.gold }}>{t}</span>
+              <span key={t} style={{ fontFamily: FONT_B, background: "rgba(242,201,76,0.08)", border: `1px solid ${T.border}`, borderRadius: 50, padding: "5px 14px", fontSize: 12, color: T.gold, fontWeight: 700 }}>{t}</span>
             ))}
           </div>
           <button style={goldBtn} onClick={() => setScreen("quiz")}>BEGIN YOUR ASSESSMENT →</button>
-          <p style={{ fontFamily: FONT_B, fontSize: 11, color: T.dim, marginTop: 18, lineHeight: 1.7 }}>
+          <p style={{ fontFamily: FONT_B, fontSize: 12, color: "rgba(237,232,212,0.45)", marginTop: 18, lineHeight: 1.7 }}>
             Grounded in research by Maslow · Csikszentmihalyi · Dweck · Kahneman · Waldinger · Dispenza · James
           </p>
           <p style={{ marginTop: 14 }}>
@@ -611,25 +650,25 @@ Write as if the most honest and caring coach they have ever met wrote this after
         <div key={animKey} style={{ ...card, padding: "28px 22px", animation: "fadeUp 0.4s ease" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 18 }}>{currentQ.icon}</span>
-            <span style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, textTransform: "uppercase" }}>{currentQ.phase}</span>
+            <span style={{ fontFamily: FONT_B, fontSize: 11, letterSpacing: 2, color: "rgba(242,201,76,0.8)", textTransform: "uppercase", fontWeight: 700 }}>{currentQ.phase}</span>
           </div>
-          <h2 style={{ fontFamily: FONT_H, fontSize: 17, fontWeight: 700, lineHeight: 1.6, color: T.text, marginBottom: 22 }}>
+          <h2 style={{ fontFamily: FONT_H, fontSize: 17, fontWeight: 700, lineHeight: 1.6, color: "#FFFFFF", marginBottom: 22 }}>
             {currentQ.question}
           </h2>
           {!insight && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {currentQ.options.map((opt, i) => (
                 <button key={i} onClick={() => handleAnswer(opt)} style={{
-                  background: selected === opt ? "rgba(242,201,76,0.1)" : "rgba(255,255,255,0.025)",
-                  border: `1.5px solid ${selected === opt ? T.gold : "rgba(255,255,255,0.08)"}`,
+                  background: selected === opt ? "rgba(242,201,76,0.1)" : "rgba(255,255,255,0.04)",
+                  border: `1.5px solid ${selected === opt ? T.gold : "rgba(255,255,255,0.12)"}`,
                   borderRadius: 12, padding: "14px 16px", textAlign: "left",
                   cursor: selected ? "default" : "pointer",
-                  color: selected === opt ? T.gold : T.text,
-                  fontFamily: FONT_B, fontSize: 13.5, lineHeight: 1.65,
+                  color: selected === opt ? T.gold : "rgba(237,232,212,0.9)",
+                  fontFamily: FONT_B, fontSize: 14, lineHeight: 1.65, fontWeight: 400,
                   transition: "all 0.22s",
                   transform: selected === opt ? "scale(1.015)" : "scale(1)",
                 }}>
-                  <span style={{ opacity: 0.35, marginRight: 10, fontSize: 11, fontFamily: FONT_H }}>{String.fromCharCode(65 + i)}</span>
+                  <span style={{ opacity: 0.55, marginRight: 10, fontSize: 12, fontFamily: FONT_B, fontWeight: 700 }}>{String.fromCharCode(65 + i)}</span>
                   {opt.text}
                 </button>
               ))}
@@ -638,12 +677,12 @@ Write as if the most honest and caring coach they have ever met wrote this after
           {insight && (
             <div style={{ animation: "slideDown 0.4s ease" }}>
               <div style={{ background: "rgba(242,201,76,0.06)", border: `1px solid rgba(242,201,76,0.18)`, borderRadius: 12, padding: "18px", marginBottom: 14 }}>
-                <div style={{ fontFamily: FONT_H, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 8, textTransform: "uppercase" }}>Your Insight</div>
-                <p style={{ fontFamily: FONT_B, fontSize: 15, fontStyle: "italic", color: T.text, lineHeight: 1.8 }}>"{insight.text}"</p>
+                <div style={{ fontFamily: FONT_B, fontSize: 11, letterSpacing: 2, color: "rgba(242,201,76,0.8)", marginBottom: 8, textTransform: "uppercase", fontWeight: 700 }}>Your Insight</div>
+                <p style={{ fontFamily: FONT_B, fontSize: 15, fontStyle: "italic", color: "#FFFFFF", lineHeight: 1.8, fontWeight: 400 }}>"{insight.text}"</p>
               </div>
-              <div style={{ background: "rgba(121,204,255,0.04)", border: "1px solid rgba(121,204,255,0.12)", borderRadius: 12, padding: "16px", marginBottom: 20 }}>
-                <div style={{ fontFamily: FONT_H, fontSize: 10, letterSpacing: 3, color: "rgba(121,204,255,0.55)", marginBottom: 6, textTransform: "uppercase" }}>The Research</div>
-                <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8 }}>{insight.science}</p>
+              <div style={{ background: "rgba(121,204,255,0.04)", border: "1px solid rgba(121,204,255,0.15)", borderRadius: 12, padding: "16px", marginBottom: 20 }}>
+                <div style={{ fontFamily: FONT_B, fontSize: 11, letterSpacing: 2, color: "rgba(121,204,255,0.8)", marginBottom: 6, textTransform: "uppercase", fontWeight: 700 }}>The Research</div>
+                <p style={{ fontFamily: FONT_B, fontSize: 14, color: "rgba(237,232,212,0.82)", lineHeight: 1.8, fontWeight: 400 }}>{insight.science}</p>
               </div>
               <button style={goldBtn} onClick={nextQuestion}>
                 {qIdx + 1 < QUIZ.length ? "NEXT QUESTION →" : "SEE MY RESULTS →"}
@@ -708,10 +747,10 @@ Write as if the most honest and caring coach they have ever met wrote this after
                 {reporting ? (
                   <div style={{ textAlign: "center", padding: "32px 0" }}>
                     <div style={{ width: 26, height: 26, border: `3px solid ${T.border}`, borderTopColor: T.gold, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-                    <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted }}>Preparing your personalized result...</p>
+                    <p style={{ fontFamily: FONT_B, fontSize: 14, color: "rgba(237,232,212,0.7)" }}>Preparing your personalized result...</p>
                   </div>
                 ) : (
-                  <p style={{ fontFamily: FONT, fontSize: 13.5, color: T.muted, lineHeight: 1.95, whiteSpace: "pre-wrap" }}>{report}</p>
+                  <p style={{ fontFamily: FONT_B, fontSize: 15, color: "rgba(237,232,212,0.88)", lineHeight: 2, whiteSpace: "pre-wrap", fontWeight: 400 }}>{report}</p>
                 )}
               </div>
               <div style={{ ...card, padding: "22px", marginBottom: 16, border: `1px solid rgba(242,201,76,0.3)`, background: "rgba(242,201,76,0.03)" }}>
@@ -920,7 +959,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
           ) : (
             <>
               <div style={{ ...card, padding: "28px 22px", marginBottom: 20 }}>
-                <p style={{ fontFamily: FONT_B, fontSize: 14, color: T.muted, lineHeight: 2.05, whiteSpace: "pre-wrap" }}>{bookContent}</p>
+                <p style={{ fontFamily: FONT_B, fontSize: 15, color: "rgba(237,232,212,0.88)", lineHeight: 2.1, whiteSpace: "pre-wrap", fontWeight: 400 }}>{bookContent}</p>
               </div>
               <button style={goldBtn} onClick={downloadBook}>⬇ DOWNLOAD MY PERSONAL GUIDE</button>
               <div style={{ height: 10 }} />
