@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ─── STRIPE PAYMENT LINKS ─────────────────────────────────────────────────────
 const PAYMENT_LINKS = {
@@ -25,7 +25,7 @@ const T = {
 
 const FONT_H = "'Century Gothic', 'AppleGothic', 'Trebuchet MS', sans-serif";
 const FONT_B = "'Nunito', 'Segoe UI', system-ui, sans-serif";
-const FONT = FONT_H; // default to header font
+const FONT = FONT_H;
 
 // ─── QUIZ ─────────────────────────────────────────────────────────────────────
 const QUIZ = [
@@ -198,7 +198,6 @@ function StarField() {
 // ─── GLOBAL CSS ───────────────────────────────────────────────────────────────
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');
-  /* Century Gothic for headers — system font, no import needed */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #04070E; overflow-x: hidden; }
   ::-webkit-scrollbar { width: 3px; }
@@ -237,6 +236,42 @@ export default function InnerGenApp() {
 
   const currentQ = QUIZ[qIdx];
   const level    = getLevel(points);
+
+  // ── PAYMENT VERIFICATION — runs once on load ───────────────────────────────
+  // When Stripe redirects back after payment, the URL contains:
+  // ?session_id=cs_xxx&tier=spark (or rise / sovereign)
+  // This block reads those params, verifies with our serverless function,
+  // then auto-launches the Magic Book for that tier.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    const tier = params.get("tier");
+
+    if (!sessionId || !tier) return; // normal load — do nothing
+
+    // Clean the URL immediately so refresh doesn't re-trigger
+    window.history.replaceState({}, "", "/");
+
+    setScreen("verifying");
+    setBookTier(tier);
+
+    fetch(`/api/verify-session?session_id=${sessionId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.verified) {
+          const confirmedTier = data.tier || tier;
+          setPurchased(p => ({ ...p, [confirmedTier]: true }));
+          generateBook(confirmedTier);
+        } else {
+          // Payment not verified — go home with a gentle message
+          setScreen("splash");
+          alert("We couldn't verify your payment. Please contact support at admin@yuliantigroup.com if you were charged.");
+        }
+      })
+      .catch(() => {
+        setScreen("splash");
+      });
+  }, []);
 
   // ── ANSWER HANDLER ─────────────────────────────────────────────────────────
   function handleAnswer(opt) {
@@ -301,10 +336,12 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
 
   // ── GENERATE MAGIC BOOK ────────────────────────────────────────────────────
   async function generateBook(tier) {
-    setBookLoading(true); setBookTier(tier); setScreen("book");
+    setBookLoading(true);
+    setBookTier(tier);
+    setScreen("book");
+
     const lvl = getLevel(points);
     const answerSummary = answers.map(a => `${a.phase}: ${a.pts}/4`).join(", ");
-
     const maxTokens = tier === "spark" ? 1600 : tier === "rise" ? 2800 : 6000;
 
     const prompts = {
@@ -438,13 +475,8 @@ Write as if the most honest and caring coach they have ever met wrote this after
   function openPaywall(tierId) { setPaywallTier(tierId); setPaywall(true); }
 
   function handleStripeRedirect(tierId) {
-    window.open(PAYMENT_LINKS[tierId], "_blank");
-    // For prototype testing — simulate payment confirmation after redirect
-    setTimeout(() => {
-      setPurchased(p => ({ ...p, [tierId]: true }));
-      setPaywall(false);
-      generateBook(tierId);
-    }, 2500);
+    // Redirect to Stripe — they will come back to our success URL
+    window.location.href = PAYMENT_LINKS[tierId];
   }
 
   function downloadBook() {
@@ -501,6 +533,21 @@ Write as if the most honest and caring coach they have ever met wrote this after
   const inner = { maxWidth: 500, margin: "0 auto", padding: "20px 18px 70px", position: "relative", zIndex: 2 };
 
   // ──────────────────────────────────────────────────────────────────────────
+  // VERIFYING SCREEN — shown while we check payment with Stripe
+  // ──────────────────────────────────────────────────────────────────────────
+  if (screen === "verifying") return (
+    <div style={{ ...wrap, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{CSS}</style>
+      <StarField />
+      <div style={{ textAlign: "center", position: "relative", zIndex: 2 }}>
+        <div style={{ width: 52, height: 52, border: `3px solid rgba(242,201,76,0.2)`, borderTopColor: T.gold, borderRadius: "50%", animation: "spin 0.9s linear infinite", margin: "0 auto 24px" }} />
+        <p style={{ fontFamily: FONT_H, fontSize: 22, color: T.gold, marginBottom: 10 }}>Verifying your payment...</p>
+        <p style={{ fontFamily: FONT_B, fontSize: 14, color: T.muted }}>Preparing your personal Magic Book ✨</p>
+      </div>
+    </div>
+  );
+
+  // ──────────────────────────────────────────────────────────────────────────
   // SPLASH
   // ──────────────────────────────────────────────────────────────────────────
   if (screen === "splash") return (
@@ -545,7 +592,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
       <style>{CSS}</style>
       <StarField />
       <div style={inner}>
-        {/* TOP BAR */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {qIdx > 0 && (
@@ -559,13 +605,9 @@ Write as if the most honest and caring coach they have ever met wrote this after
           </div>
           <span style={{ fontFamily: FONT, fontSize: 11, color: T.goldDim, letterSpacing: 2 }}>INNERGEN</span>
         </div>
-
-        {/* PROGRESS BAR */}
         <div style={{ height: 2, background: "rgba(255,255,255,0.06)", borderRadius: 1, overflow: "hidden", marginBottom: 24 }}>
           <div style={{ height: "100%", width: `${(qIdx / QUIZ.length) * 100}%`, background: `linear-gradient(90deg, ${T.gold}, ${T.goldLight})`, transition: "width 0.5s ease", boxShadow: `0 0 8px ${T.gold}` }} />
         </div>
-
-        {/* QUESTION CARD */}
         <div key={animKey} style={{ ...card, padding: "28px 22px", animation: "fadeUp 0.4s ease" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <span style={{ fontSize: 18 }}>{currentQ.icon}</span>
@@ -574,8 +616,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
           <h2 style={{ fontFamily: FONT_H, fontSize: 17, fontWeight: 700, lineHeight: 1.6, color: T.text, marginBottom: 22 }}>
             {currentQ.question}
           </h2>
-
-          {/* OPTIONS */}
           {!insight && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {currentQ.options.map((opt, i) => (
@@ -595,8 +635,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
               ))}
             </div>
           )}
-
-          {/* INSIGHT REVEAL */}
           {insight && (
             <div style={{ animation: "slideDown 0.4s ease" }}>
               <div style={{ background: "rgba(242,201,76,0.06)", border: `1px solid rgba(242,201,76,0.18)`, borderRadius: 12, padding: "18px", marginBottom: 14 }}>
@@ -626,13 +664,10 @@ Write as if the most honest and caring coach they have ever met wrote this after
       { id: "books",  label: "Magic Books" },
       { id: "progress", label: "Progress" },
     ];
-
     return (
       <div style={wrap}>
         <style>{CSS}</style>
         <StarField />
-
-        {/* STICKY HEADER */}
         <div style={{ background: "rgba(4,7,14,0.94)", borderBottom: `1px solid ${T.border}`, backdropFilter: "blur(16px)", padding: "13px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 30 }}>
           <div>
             <div style={{ fontFamily: FONT, fontSize: 17, fontWeight: 700, color: T.gold, letterSpacing: 1 }}>InnerGen</div>
@@ -640,8 +675,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
           </div>
           <div style={{ fontFamily: FONT, fontSize: 12, color: T.muted }}>{level.emoji} {level.title}</div>
         </div>
-
-        {/* TABS */}
         <div style={{ display: "flex", borderBottom: `1px solid ${T.border}`, background: "rgba(4,7,14,0.88)", backdropFilter: "blur(8px)", position: "sticky", top: 56, zIndex: 29 }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
@@ -653,14 +686,9 @@ Write as if the most honest and caring coach they have ever met wrote this after
             }}>{t.label}</button>
           ))}
         </div>
-
         <div style={inner}>
-
-          {/* ── MY RESULT TAB ───────────────────────────────────────────── */}
           {activeTab === "result" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
-
-              {/* LEVEL CARD */}
               <div style={{ ...card, padding: "28px 22px", marginBottom: 16, textAlign: "center" }}>
                 <div style={{ fontSize: 50, marginBottom: 8, animation: "beat 2.5s infinite" }}>{level.emoji}</div>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 4, color: T.goldDim, marginBottom: 8, textTransform: "uppercase" }}>Your Potential Profile</div>
@@ -675,8 +703,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   ))}
                 </div>
               </div>
-
-              {/* PERSONALIZED RESULT */}
               <div style={{ ...card, padding: "22px", marginBottom: 16 }}>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 14, textTransform: "uppercase" }}>✦ Your Result</div>
                 {reporting ? (
@@ -688,8 +714,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   <p style={{ fontFamily: FONT, fontSize: 13.5, color: T.muted, lineHeight: 1.95, whiteSpace: "pre-wrap" }}>{report}</p>
                 )}
               </div>
-
-              {/* MAGIC BOOK CTA */}
               <div style={{ ...card, padding: "22px", marginBottom: 16, border: `1px solid rgba(242,201,76,0.3)`, background: "rgba(242,201,76,0.03)" }}>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Go Deeper</div>
                 <h3 style={{ fontFamily: FONT, fontSize: 20, color: T.text, fontWeight: 700, marginBottom: 10 }}>Your Personal Magic Book</h3>
@@ -698,8 +722,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
                 </p>
                 <button style={goldBtn} onClick={() => setActiveTab("books")}>EXPLORE MY MAGIC BOOKS →</button>
               </div>
-
-              {/* SHARE */}
               <div style={{ ...card, padding: "20px 22px", marginBottom: 16 }}>
                 <div style={{ fontFamily: FONT_H, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Share Your Result</div>
                 <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.75, marginBottom: 16 }}>
@@ -717,7 +739,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
                       background: "rgba(255,255,255,0.03)", cursor: "pointer",
                       fontFamily: FONT_B, fontSize: 12, color: s.color,
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      transition: "all 0.2s",
                     }}>
                       <span>{s.emoji}</span> {s.label}
                     </button>
@@ -725,14 +746,12 @@ Write as if the most honest and caring coach they have ever met wrote this after
                 </div>
                 {shareMsg && <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.green, textAlign: "center", marginTop: 10 }}>{shareMsg}</p>}
               </div>
-
               <button style={dimBtn} onClick={() => { setScreen("quiz"); setQIdx(0); setSelected(null); setInsight(null); setPoints(0); setAnswers([]); setReport(""); setAnimKey(0); }}>
                 ↩ Retake Assessment
               </button>
             </div>
           )}
 
-          {/* ── MAGIC BOOKS TAB ─────────────────────────────────────────── */}
           {activeTab === "books" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ marginBottom: 22 }}>
@@ -741,10 +760,8 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   Each guide is built entirely from your answers. Personalized for you. No two are ever the same.
                 </p>
               </div>
-
               {TIERS.map(tier => (
                 <div key={tier.id} style={{ ...card, padding: "24px 22px", marginBottom: 16, border: `1px solid ${tier.color}20` }}>
-                  {/* TIER HEADER */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                     <div>
                       <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: tier.color, textTransform: "uppercase", marginBottom: 6 }}>
@@ -754,19 +771,13 @@ Write as if the most honest and caring coach they have ever met wrote this after
                     </div>
                     <div style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: tier.color, flexShrink: 0, marginLeft: 12 }}>{tier.price}</div>
                   </div>
-
-                  {/* DESCRIPTION */}
                   <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 16 }}>{tier.description}</p>
-
-                  {/* FEATURES */}
                   {tier.features.map((f, i) => (
                     <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
                       <span style={{ color: tier.color, fontSize: 12, flexShrink: 0, marginTop: 2 }}>✓</span>
                       <span style={{ fontFamily: FONT, fontSize: 12.5, color: T.muted, lineHeight: 1.55 }}>{f}</span>
                     </div>
                   ))}
-
-                  {/* CTA */}
                   <div style={{ marginTop: 18 }}>
                     {purchased[tier.id] ? (
                       <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${tier.color}, ${tier.color}99)` }} onClick={() => generateBook(tier.id)}>
@@ -780,7 +791,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   </div>
                 </div>
               ))}
-
               <div style={{ ...card, padding: "18px 20px", textAlign: "center", marginTop: 8 }}>
                 <p style={{ fontFamily: FONT, fontSize: 12, fontStyle: "italic", color: T.dim, lineHeight: 1.7 }}>
                   One-time purchase · Instant access · Yours forever · No subscription
@@ -789,14 +799,12 @@ Write as if the most honest and caring coach they have ever met wrote this after
             </div>
           )}
 
-          {/* ── PROGRESS TAB ────────────────────────────────────────────── */}
           {activeTab === "progress" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 6 }}>Your Progress</h2>
               <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted, marginBottom: 22, lineHeight: 1.7 }}>
                 A breakdown of your scores across all eight dimensions of human potential.
               </p>
-
               <div style={{ ...card, padding: "24px 22px", marginBottom: 16 }}>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 18, textTransform: "uppercase" }}>Phase Breakdown</div>
                 {QUIZ.map((q, i) => {
@@ -816,11 +824,10 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   );
                 })}
               </div>
-
               <div style={{ ...card, padding: "22px" }}>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 14, textTransform: "uppercase" }}>Overall Score</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <div style={{ fontSize: level.emoji === "⚡" ? 44 : 40 }}>{level.emoji}</div>
+                  <div style={{ fontSize: 40 }}>{level.emoji}</div>
                   <div>
                     <div style={{ fontFamily: FONT, fontSize: 36, fontWeight: 700, color: level.color, lineHeight: 1 }}>{points}<span style={{ fontSize: 16, color: T.dim }}>/32</span></div>
                     <div style={{ fontFamily: FONT, fontSize: 13, color: T.muted, marginTop: 4 }}>{level.title}</div>
@@ -832,7 +839,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
           )}
         </div>
 
-        {/* ── PAYWALL MODAL ───────────────────────────────────────────────── */}
         {paywall && paywallTier && (() => {
           const tier = TIERS.find(t => t.id === paywallTier);
           return (
@@ -848,14 +854,12 @@ Write as if the most honest and caring coach they have ever met wrote this after
                     Built entirely from your answers. Personalized for you. Instant access.
                   </p>
                 </div>
-
                 {tier.features.map((f, i) => (
                   <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 9 }}>
                     <span style={{ color: tier.color, fontSize: 13, flexShrink: 0, marginTop: 1 }}>✓</span>
                     <span style={{ fontFamily: FONT, fontSize: 13, color: T.muted }}>{f}</span>
                   </div>
                 ))}
-
                 <div style={{ textAlign: "center", margin: "22px 0 8px" }}>
                   <span style={{ fontFamily: FONT, fontSize: 40, fontWeight: 700, color: tier.color }}>{tier.price}</span>
                   <span style={{ fontFamily: FONT, fontSize: 13, color: T.muted }}> · one time · yours forever</span>
@@ -895,7 +899,6 @@ Write as if the most honest and caring coach they have ever met wrote this after
           <button onClick={() => setScreen("dashboard")} style={{ background: "none", border: "none", color: T.muted, fontFamily: FONT_B, fontSize: 13, cursor: "pointer", marginBottom: 20, padding: "6px 0" }}>
             ← Back to Dashboard
           </button>
-
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div style={{ fontSize: 48, marginBottom: 10, animation: bookLoading ? "spin 2s linear infinite" : "beat 3s infinite" }}>
               {bookLoading ? "⚙️" : "📖"}
@@ -903,14 +906,9 @@ Write as if the most honest and caring coach they have ever met wrote this after
             <div style={{ fontFamily: FONT_H, fontSize: 10, letterSpacing: 4, color: T.goldDim, marginBottom: 8, textTransform: "uppercase" }}>
               {tier?.emoji} {tier?.label} · Your Personal Guide
             </div>
-            <h1 style={{ fontFamily: FONT_H, fontSize: 26, fontWeight: 700, color: T.gold, marginBottom: 8 }}>
-              {level.title}
-            </h1>
-            <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}>
-              Score {points}/32 · Personalized for you
-            </p>
+            <h1 style={{ fontFamily: FONT_H, fontSize: 26, fontWeight: 700, color: T.gold, marginBottom: 8 }}>{level.title}</h1>
+            <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}>Score {points}/32 · Personalized for you</p>
           </div>
-
           {bookLoading ? (
             <div style={{ ...card, padding: "44px 22px", textAlign: "center" }}>
               <div style={{ width: 32, height: 32, border: `3px solid ${T.border}`, borderTopColor: T.gold, borderRadius: "50%", animation: "spin 0.9s linear infinite", margin: "0 auto 18px" }} />
@@ -922,15 +920,11 @@ Write as if the most honest and caring coach they have ever met wrote this after
           ) : (
             <>
               <div style={{ ...card, padding: "28px 22px", marginBottom: 20 }}>
-                <p style={{ fontFamily: FONT_B, fontSize: 14, color: T.muted, lineHeight: 2.05, whiteSpace: "pre-wrap" }}>
-                  {bookContent}
-                </p>
+                <p style={{ fontFamily: FONT_B, fontSize: 14, color: T.muted, lineHeight: 2.05, whiteSpace: "pre-wrap" }}>{bookContent}</p>
               </div>
               <button style={goldBtn} onClick={downloadBook}>⬇ DOWNLOAD MY PERSONAL GUIDE</button>
               <div style={{ height: 10 }} />
-              <button style={outlineBtn} onClick={() => { setScreen("dashboard"); setActiveTab("books"); }}>
-                ← Back to Magic Books
-              </button>
+              <button style={outlineBtn} onClick={() => { setScreen("dashboard"); setActiveTab("books"); }}>← Back to Magic Books</button>
               <div style={{ height: 10 }} />
               <div style={{ ...card, padding: "16px 20px", textAlign: "center" }}>
                 <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, lineHeight: 1.7 }}>
@@ -960,57 +954,27 @@ Write as if the most honest and caring coach they have ever met wrote this after
           <h1 style={{ fontFamily: FONT_H, fontSize: 24, fontWeight: 700, color: T.text }}>Terms & Conditions</h1>
           <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, marginTop: 6 }}>Last updated: May 2026</p>
         </div>
-
         {[
-          {
-            title: "1. What InnerGen Is",
-            body: "InnerGen is a self-awareness assessment tool designed for personal development purposes. The quiz and personal guides are intended to support reflection, growth, and meaningful action in your life.\n\nInnerGen is not a medical service, psychological treatment, financial advisory service, or substitute for professional advice of any kind. If you are experiencing a mental health crisis or require professional support, please consult a qualified professional."
-          },
-          {
-            title: "2. AI-Generated Content",
-            body: "The personal guides delivered through InnerGen are generated using artificial intelligence technology, based on your specific assessment responses. Each guide is unique to your answers at the time of assessment.\n\nWhile every guide is built from a framework grounded in established research in neuroscience, psychology, and behavioral science, the output is generated by AI and has not been reviewed by a licensed professional. Results are for personal development and informational purposes only."
-          },
-          {
-            title: "3. Purchases and Refund Policy",
-            body: "InnerGen offers three personal guide tiers — Spark ($11.95), Rise ($33.95), and Sovereign ($55.95) — each as a one-time purchase.\n\nYour personal guide is generated and delivered digitally and instantly upon confirmed payment. Because each guide is uniquely generated from your personal responses and delivered immediately, we are unable to offer refunds once a guide has been generated and delivered.\n\nIf you experience a genuine technical failure that prevents delivery of your guide after payment, please contact us and we will resolve it promptly.\n\nPayments are processed securely through Stripe. InnerGen does not store your payment information."
-          },
-          {
-            title: "4. No Guarantees of Specific Outcomes",
-            body: "InnerGen provides tools, frameworks, and guidance for personal development. We believe deeply in human potential and the value of self-awareness.\n\nHowever, we cannot and do not guarantee specific life outcomes — financial, health-related, relational, or otherwise — as a result of using this application or its guides. Your results depend entirely on your own choices, effort, and circumstances."
-          },
-          {
-            title: "5. Intellectual Property",
-            body: "The InnerGen quiz, framework, brand, and application are the intellectual property of InnerGen and its creator. All rights reserved.\n\nYour personal guide is provided for your individual personal use only. You may not reproduce, sell, or distribute the content of your guide commercially."
-          },
-          {
-            title: "6. Privacy",
-            body: "What we collect: Your assessment responses and purchase information.\n\nHow we use it: To generate your personalized guide and process your payment.\n\nWhat we don't do: We do not sell, share, or distribute your personal data to third parties for marketing purposes.\n\nPayment data is handled entirely by Stripe. Please review Stripe's privacy policy for details on payment data handling."
-          },
-          {
-            title: "7. Limitation of Liability",
-            body: "To the fullest extent permitted by applicable law, InnerGen and its creator shall not be liable for any indirect, incidental, or consequential damages arising from your use of this application or its content."
-          },
-          {
-            title: "8. Changes to These Terms",
-            body: "We may update these Terms and Conditions from time to time. Continued use of InnerGen after any changes constitutes acceptance of the updated terms."
-          },
-          {
-            title: "9. Contact",
-            body: "For questions, technical issues, or concerns, please contact us at:\n\nadmin@yuliantigroup.com"
-          },
+          { title: "1. What InnerGen Is", body: "InnerGen is a self-awareness assessment tool designed for personal development purposes. The quiz and personal guides are intended to support reflection, growth, and meaningful action in your life.\n\nInnerGen is not a medical service, psychological treatment, financial advisory service, or substitute for professional advice of any kind. If you are experiencing a mental health crisis or require professional support, please consult a qualified professional." },
+          { title: "2. AI-Generated Content", body: "The personal guides delivered through InnerGen are generated using artificial intelligence technology, based on your specific assessment responses. Each guide is unique to your answers at the time of assessment.\n\nWhile every guide is built from a framework grounded in established research in neuroscience, psychology, and behavioral science, the output is generated by AI and has not been reviewed by a licensed professional. Results are for personal development and informational purposes only." },
+          { title: "3. Purchases and Refund Policy", body: "InnerGen offers three personal guide tiers — Spark ($11.95), Rise ($33.95), and Sovereign ($55.95) — each as a one-time purchase.\n\nYour personal guide is generated and delivered digitally and instantly upon confirmed payment. Because each guide is uniquely generated from your personal responses and delivered immediately, we are unable to offer refunds once a guide has been generated and delivered.\n\nIf you experience a genuine technical failure that prevents delivery of your guide after payment, please contact us and we will resolve it promptly.\n\nPayments are processed securely through Stripe. InnerGen does not store your payment information." },
+          { title: "4. No Guarantees of Specific Outcomes", body: "InnerGen provides tools, frameworks, and guidance for personal development. We believe deeply in human potential and the value of self-awareness.\n\nHowever, we cannot and do not guarantee specific life outcomes — financial, health-related, relational, or otherwise — as a result of using this application or its guides. Your results depend entirely on your own choices, effort, and circumstances." },
+          { title: "5. Intellectual Property", body: "The InnerGen quiz, framework, brand, and application are the intellectual property of InnerGen and its creator. All rights reserved.\n\nYour personal guide is provided for your individual personal use only. You may not reproduce, sell, or distribute the content of your guide commercially." },
+          { title: "6. Privacy", body: "What we collect: Your assessment responses and purchase information.\n\nHow we use it: To generate your personalized guide and process your payment.\n\nWhat we don't do: We do not sell, share, or distribute your personal data to third parties for marketing purposes.\n\nPayment data is handled entirely by Stripe. Please review Stripe's privacy policy for details on payment data handling." },
+          { title: "7. Limitation of Liability", body: "To the fullest extent permitted by applicable law, InnerGen and its creator shall not be liable for any indirect, incidental, or consequential damages arising from your use of this application or its content." },
+          { title: "8. Changes to These Terms", body: "We may update these Terms and Conditions from time to time. Continued use of InnerGen after any changes constitutes acceptance of the updated terms." },
+          { title: "9. Contact", body: "For questions, technical issues, or concerns, please contact us at:\n\nadmin@yuliantigroup.com" },
         ].map((section, i) => (
           <div key={i} style={{ ...card, padding: "20px 22px", marginBottom: 12 }}>
             <h3 style={{ fontFamily: FONT_H, fontSize: 14, fontWeight: 700, color: T.gold, marginBottom: 10 }}>{section.title}</h3>
             <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{section.body}</p>
           </div>
         ))}
-
         <div style={{ ...card, padding: "16px 20px", marginTop: 8, textAlign: "center" }}>
           <p style={{ fontFamily: FONT_B, fontSize: 11, color: T.dim, lineHeight: 1.7 }}>
             These terms were prepared for informational purposes.<br />Review by a qualified attorney is recommended.
           </p>
         </div>
-
         <div style={{ height: 20 }} />
         <button style={goldBtn} onClick={() => setScreen(prevScreen)}>← Back to InnerGen</button>
       </div>
