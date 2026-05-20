@@ -492,8 +492,14 @@ Write as if the most honest and caring coach they have ever met wrote this after
     };
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
+const res = await fetch("/api/generate-book", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ prompt: prompts[tier], maxTokens }),
+});
+const d = await res.json();
+setBookContent(d.text || "Your guide is ready.");
+      method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
