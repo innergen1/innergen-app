@@ -285,18 +285,14 @@ export default function InnerGenApp() {
             rise: `You are a human potential guide. Create a Rise Guide for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment: ${answerSummary}.\n\nWarm, direct, specific. No fluff. Second person. No mention of AI.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nThree paragraphs. Where they are now. What's strong. What's ready to transform.\n\nYOUR THREE CORE STRENGTHS\nThree strengths. For each: name it, explain why it matters, give one specific practice.\n\nYOUR SHADOW PATTERN\nThe one limiting pattern. Name it plainly. Why it forms. One daily practice to dissolve it.\n\nYOUR 30-DAY PLAN\nFour weeks with theme and daily practices.\n\nWHAT CHANGES AT 30 DAYS\nFour specific observable things they will notice.\n\nYOUR FOUR RESOURCES\nFour real books with title, author, and why it fits their profile.`,
             sovereign: `You are a human potential guide. Create a complete Sovereign Life Architecture for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment: ${answerSummary}.\n\nPractical, specific, immediately useful. Warm, intelligent, direct. Second person. No mention of AI.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nThree paragraphs. Full picture of where they are. What's exceptional. What's ready to break open.\n\nYOUR GENIUS PROFILE\nTwo natural ways their mind works best. Name each. One way to use each more deliberately.\n\nYOUR THREE CORE STRENGTHS\nEach named. Why it matters. One practice to develop it.\n\nYOUR SHADOW PATTERN\nNamed plainly. Why it formed. One daily practice to dissolve it.\n\nYOUR IDENTITY SHIFT\nWho they are becoming. Two paragraphs.\n\nYOUR WEALTH MINDSET\nHow their thinking affects money. Two to three practical shifts.\n\nYOUR RELATIONSHIP EDGE\nStrongest relational quality and biggest growth edge. One practice each.\n\nYOUR 90-DAY ROADMAP\nThree months. Each with theme and weekly focuses.\n\nYOUR DAILY PRACTICES\nFive core practices. Named, why it works, exact instruction.\n\nYOUR RESOURCES\nFive books, one podcast, one documentary. One sentence each on why it fits.\n\nYOUR MONTHLY CHECK-IN QUESTIONS\nFour questions to measure real growth.`,
           };
-          fetch("https://api.anthropic.com/v1/messages", {
+          fetch("/api/generate-book", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: maxTokens,
-              messages: [{ role: "user", content: prompts[confirmedTier] }]
-            })
+            body: JSON.stringify({ prompt: prompts[confirmedTier], maxTokens })
           })
           .then(r => r.json())
           .then(d => {
-            setBookContent(d.content?.map(b => b.text || "").join("") || "Your guide is ready.");
+            setBookContent(d.text || "Your guide is ready.");
             setBookLoading(false);
           })
           .catch(() => {
@@ -350,22 +346,18 @@ export default function InnerGenApp() {
     const summary = ans.map(a => `${a.phase}: ${a.pts}/4`).join(", ");
     const lvl = getLevel(total);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/generate-book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `You are a human potential specialist grounded in neuroscience, psychology, and behavioral science. Someone just completed a self-awareness assessment. Their results: ${summary}. Overall profile: "${lvl.title}". Total score: ${total}/32.
+          prompt: `You are a human potential specialist grounded in neuroscience, psychology, and behavioral science. Someone just completed a self-awareness assessment. Their results: ${summary}. Overall profile: "${lvl.title}". Total score: ${total}/32.
 
-Write a warm, intelligent 3-paragraph personal result. Ground every insight in named researchers or real studies. Paragraph 1: what their specific pattern reveals about their current mindset state — name the science. Paragraph 2: their clearest growth edge based on their lowest-scoring areas — be precise, not general. Paragraph 3: one exact, research-backed action that will create the most leverage for them specifically. End with one sentence from a scientist or philosopher. No bullet points. Pure flowing prose. Second person. No preamble. No mention of AI or technology. Write as if a deeply knowledgeable human wrote this specifically for them.`
-          }]
+Write a warm, intelligent 3-paragraph personal result. Ground every insight in named researchers or real studies. Paragraph 1: what their specific pattern reveals about their current mindset state — name the science. Paragraph 2: their clearest growth edge based on their lowest-scoring areas — be precise, not general. Paragraph 3: one exact, research-backed action that will create the most leverage for them specifically. End with one sentence from a scientist or philosopher. No bullet points. Pure flowing prose. Second person. No preamble. No mention of AI or technology. Write as if a deeply knowledgeable human wrote this specifically for them.`,
+          maxTokens: 1000,
         })
       });
       const d = await res.json();
-      setReport(d.content?.map(b => b.text || "").join("") || "");
+      setReport(d.text || "");
     } catch {
       setReport("Your results reveal a meaningful and specific pattern. Every answer you gave honestly has already begun to shift something. The awareness you brought to these questions is itself the first step of transformation.");
     }
@@ -492,23 +484,13 @@ Write as if the most honest and caring coach they have ever met wrote this after
     };
 
     try {
-const res = await fetch("/api/generate-book", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ prompt: prompts[tier], maxTokens }),
-});
-const d = await res.json();
-setBookContent(d.text || "Your guide is ready.");
-      method: "POST",
+      const res = await fetch("/api/generate-book", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: maxTokens,
-          messages: [{ role: "user", content: prompts[tier] }]
-        })
+        body: JSON.stringify({ prompt: prompts[tier], maxTokens }),
       });
       const d = await res.json();
-      setBookContent(d.content?.map(b => b.text || "").join("") || "Your guide is ready.");
+      setBookContent(d.text || "Your guide is ready.");
     } catch {
       setBookContent("Your personal guide is ready. Please ensure a stable connection and try again if needed.");
     }
