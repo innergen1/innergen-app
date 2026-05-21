@@ -24,22 +24,51 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: maxTokens || 1600,
+        stream: true,
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
-    const data = await response.json();
+    // Set headers for Server-Sent Events streaming
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
 
-    if (data.error) {
-      console.error("Anthropic error:", data.error);
-      return res.status(500).json({ error: data.error.message });
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n").filter(line => line.trim());
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+          if (data === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === "content_block_delta") {
+              const text = parsed.delta?.text || "";
+              if (text) {
+                res.write(`data: ${JSON.stringify({ text })}\n\n`);
+              }
+            }
+          } catch {}
+        }
+      }
     }
 
-    const text = data.content?.map(b => b.text || "").join("") || "";
-    return res.status(200).json({ text });
+    res.write("data: [DONE]\n\n");
+    res.end();
 
   } catch (err) {
     console.error("generate-book error:", err.message);
-    return res.status(500).json({ error: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
   }
 }
