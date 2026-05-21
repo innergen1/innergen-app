@@ -211,6 +211,111 @@ const CSS = `
   @keyframes slideDown{ from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);} }
 `;
 
+// ─── PROMPTS ──────────────────────────────────────────────────────────────────
+function getPrompt(tier, lvl, points, answerSummary) {
+  const prompts = {
+    spark: `You are a human potential guide. Create a personal Spark Guide for someone at the "${lvl.title}" level (score ${points}/32). Their assessment scores: ${answerSummary}.
+
+Your job is simple: help this person take clear, practical steps toward a richer, more meaningful life. Be warm, direct, and specific to their answers. No fluff. No jargon. Write in second person. Do not mention AI or technology.
+
+Use these section headings exactly:
+
+YOUR POTENTIAL BLUEPRINT
+Two paragraphs. What their answers reveal about where they are right now — honest, warm, specific. What's working. What's ready to shift.
+
+YOUR CORE STRENGTH
+The one strength their answers show most clearly. Name it simply. Explain in plain language why it matters for their life. Give one specific thing to do this week to use it.
+
+YOUR 7-DAY STARTER PLAN
+Seven daily practices. Each one named, one sentence of why it works, one exact instruction.
+
+Day 1: [name] — [why it works] — [exact instruction]
+Day 2: [name] — [why it works] — [exact instruction]
+Day 3: [name] — [why it works] — [exact instruction]
+Day 4: [name] — [why it works] — [exact instruction]
+Day 5: [name] — [why it works] — [exact instruction]
+Day 6: [name] — [why it works] — [exact instruction]
+Day 7: [name] — [why it works] — [exact instruction]
+
+YOUR DAILY QUESTION
+One question to ask yourself every morning. Explain in two sentences why this question matters for them.
+
+YOUR NEXT BOOK
+One real book. Title and author. Two sentences on exactly why it fits where they are right now.`,
+
+    rise: `You are a human potential guide. Create a Rise Guide for someone at the "${lvl.title}" level (score ${points}/32). Their assessment: ${answerSummary}.
+
+Warm, direct, specific. No fluff. Second person. No mention of AI.
+
+Use these section headings exactly:
+
+YOUR POTENTIAL BLUEPRINT
+Three paragraphs. Where they are now. What's strong. What's ready to transform.
+
+YOUR THREE CORE STRENGTHS
+Three strengths. For each: name it, explain why it matters, give one specific practice.
+
+YOUR SHADOW PATTERN
+The one limiting pattern. Name it plainly. Why it forms. One daily practice to dissolve it.
+
+YOUR 30-DAY PLAN
+Four weeks with theme and daily practices.
+Week 1 — [Theme]: [practices]
+Week 2 — [Theme]: [practices]
+Week 3 — [Theme]: [practices]
+Week 4 — [Theme]: [practices]
+
+WHAT CHANGES AT 30 DAYS
+Four specific observable things they will notice.
+
+YOUR FOUR RESOURCES
+Four real books with title, author, and why it fits their profile.`,
+
+    sovereign: `You are a human potential guide. Create a complete Sovereign Life Architecture for someone at the "${lvl.title}" level (score ${points}/32). Their assessment: ${answerSummary}.
+
+Practical, specific, immediately useful. Warm, intelligent, direct. Second person. No mention of AI.
+
+Use these section headings exactly:
+
+YOUR POTENTIAL BLUEPRINT
+Three paragraphs. Full picture of where they are. What's exceptional. What's ready to break open.
+
+YOUR GENIUS PROFILE
+Two natural ways their mind works best. Name each. One way to use each more deliberately.
+
+YOUR THREE CORE STRENGTHS
+Each named. Why it matters. One practice to develop it.
+
+YOUR SHADOW PATTERN
+Named plainly. Why it formed. One daily practice to dissolve it.
+
+YOUR IDENTITY SHIFT
+Who they are becoming. Two paragraphs.
+
+YOUR WEALTH MINDSET
+How their thinking affects money. Two to three practical shifts.
+
+YOUR RELATIONSHIP EDGE
+Strongest relational quality and biggest growth edge. One practice each.
+
+YOUR 90-DAY ROADMAP
+Three months. Each with theme and weekly focuses.
+Month 1 — [Theme]: [weekly focuses]
+Month 2 — [Theme]: [weekly focuses]
+Month 3 — [Theme]: [weekly focuses]
+
+YOUR DAILY PRACTICES
+Five core practices. Named, why it works, exact instruction.
+
+YOUR RESOURCES
+Five books, one podcast, one documentary. One sentence each on why it fits.
+
+YOUR MONTHLY CHECK-IN QUESTIONS
+Four questions to measure real growth.`,
+  };
+  return prompts[tier] || prompts.spark;
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function InnerGenApp() {
   const [screen,      setScreen]      = useState("splash");
@@ -237,7 +342,7 @@ export default function InnerGenApp() {
   const currentQ = QUIZ[qIdx];
   const level    = getLevel(points);
 
-  // ── PAYMENT VERIFICATION — runs once on load ───────────────────────────────
+  // ── PAYMENT VERIFICATION ──────────────────────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
@@ -245,10 +350,8 @@ export default function InnerGenApp() {
 
     if (!sessionId || !tier) return;
 
-    // Clean the URL immediately
     window.history.replaceState({}, "", "/");
 
-    // Restore quiz state saved before Stripe redirect
     const savedAnswers = localStorage.getItem("ig_answers");
     const savedPoints  = localStorage.getItem("ig_points");
     const savedTier    = localStorage.getItem("ig_tier") || tier;
@@ -257,9 +360,8 @@ export default function InnerGenApp() {
     localStorage.removeItem("ig_tier");
 
     const restoredAnswers = savedAnswers ? JSON.parse(savedAnswers) : [];
-    const restoredPoints  = savedPoints  ? parseInt(savedPoints, 10) : 20; // default to mid-range if missing
+    const restoredPoints  = savedPoints  ? parseInt(savedPoints, 10) : 20;
 
-    // Update state with restored values
     setAnswers(restoredAnswers);
     setPoints(restoredPoints);
     setScreen("verifying");
@@ -271,28 +373,25 @@ export default function InnerGenApp() {
         if (data.verified) {
           const confirmedTier = data.tier || savedTier;
           setPurchased(p => ({ ...p, [confirmedTier]: true }));
-          // Generate book with restored state inline
           setBookLoading(true);
           setBookTier(confirmedTier);
           setScreen("book");
+
           const lvl = getLevel(restoredPoints);
-          const answerSummary = restoredAnswers.length > 0 
-            ? restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ") 
-            : "Assessment completed — generate a powerful personalized guide for someone at the growth-oriented level";
+          const answerSummary = restoredAnswers.length > 0
+            ? restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
+            : "Assessment completed — generate a powerful personalized guide for a growth-oriented person";
           const maxTokens = confirmedTier === "spark" ? 1600 : confirmedTier === "rise" ? 2800 : 6000;
-          const prompts = {
-            spark: `You are a human potential guide. Create a personal Spark Guide for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment scores: ${answerSummary}.\n\nYour job is simple: help this person take clear, practical steps toward a richer, more meaningful life. Be warm, direct, and specific to their answers. No fluff. No jargon. Write in second person. Do not mention AI or technology.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nTwo paragraphs. What their answers reveal about where they are right now — honest, warm, specific. What's working. What's ready to shift.\n\nYOUR CORE STRENGTH\nThe one strength their answers show most clearly. Name it simply. Explain in plain language why it matters for their life. Give one specific thing to do this week to use it.\n\nYOUR 7-DAY STARTER PLAN\nSeven daily practices. Each one named, one sentence of why it works, one exact instruction.\n\nDay 1: [name] — [why it works] — [exact instruction]\nDay 2: [name] — [why it works] — [exact instruction]\nDay 3: [name] — [why it works] — [exact instruction]\nDay 4: [name] — [why it works] — [exact instruction]\nDay 5: [name] — [why it works] — [exact instruction]\nDay 6: [name] — [why it works] — [exact instruction]\nDay 7: [name] — [why it works] — [exact instruction]\n\nYOUR DAILY QUESTION\nOne question to ask yourself every morning. Explain in two sentences why this question matters for them.\n\nYOUR NEXT BOOK\nOne real book. Title and author. Two sentences on exactly why it fits where they are right now.`,
-            rise: `You are a human potential guide. Create a Rise Guide for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment: ${answerSummary}.\n\nWarm, direct, specific. No fluff. Second person. No mention of AI.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nThree paragraphs. Where they are now. What's strong. What's ready to transform.\n\nYOUR THREE CORE STRENGTHS\nThree strengths. For each: name it, explain why it matters, give one specific practice.\n\nYOUR SHADOW PATTERN\nThe one limiting pattern. Name it plainly. Why it forms. One daily practice to dissolve it.\n\nYOUR 30-DAY PLAN\nFour weeks with theme and daily practices.\n\nWHAT CHANGES AT 30 DAYS\nFour specific observable things they will notice.\n\nYOUR FOUR RESOURCES\nFour real books with title, author, and why it fits their profile.`,
-            sovereign: `You are a human potential guide. Create a complete Sovereign Life Architecture for someone at the "${lvl.title}" level (score ${restoredPoints}/32). Their assessment: ${answerSummary}.\n\nPractical, specific, immediately useful. Warm, intelligent, direct. Second person. No mention of AI.\n\nUse these section headings exactly:\n\nYOUR POTENTIAL BLUEPRINT\nThree paragraphs. Full picture of where they are. What's exceptional. What's ready to break open.\n\nYOUR GENIUS PROFILE\nTwo natural ways their mind works best. Name each. One way to use each more deliberately.\n\nYOUR THREE CORE STRENGTHS\nEach named. Why it matters. One practice to develop it.\n\nYOUR SHADOW PATTERN\nNamed plainly. Why it formed. One daily practice to dissolve it.\n\nYOUR IDENTITY SHIFT\nWho they are becoming. Two paragraphs.\n\nYOUR WEALTH MINDSET\nHow their thinking affects money. Two to three practical shifts.\n\nYOUR RELATIONSHIP EDGE\nStrongest relational quality and biggest growth edge. One practice each.\n\nYOUR 90-DAY ROADMAP\nThree months. Each with theme and weekly focuses.\n\nYOUR DAILY PRACTICES\nFive core practices. Named, why it works, exact instruction.\n\nYOUR RESOURCES\nFive books, one podcast, one documentary. One sentence each on why it fits.\n\nYOUR MONTHLY CHECK-IN QUESTIONS\nFour questions to measure real growth.`,
-          };
+          const prompt = getPrompt(confirmedTier, lvl, restoredPoints, answerSummary);
+
           fetch("/api/generate-book", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: prompts[confirmedTier], maxTokens })
+            body: JSON.stringify({ prompt, maxTokens }),
           })
           .then(r => r.json())
           .then(d => {
-            setBookContent(d.text || "Your guide is ready.");
+            setBookContent(d.text || "Your guide is ready. Please refresh if content is missing.");
             setBookLoading(false);
           })
           .catch(() => {
@@ -307,14 +406,14 @@ export default function InnerGenApp() {
       .catch(() => setScreen("splash"));
   }, []);
 
-  // ── ANSWER HANDLER ─────────────────────────────────────────────────────────
+  // ── ANSWER HANDLER ────────────────────────────────────────────────────────
   function handleAnswer(opt) {
     if (selected) return;
     setSelected(opt);
     setInsight({ text: opt.reveal, science: currentQ.science });
   }
 
-  // ── NEXT QUESTION ──────────────────────────────────────────────────────────
+  // ── NEXT QUESTION ─────────────────────────────────────────────────────────
   function nextQuestion() {
     const newAnswers = [...answers, { q: currentQ.id, pts: selected.pts, phase: currentQ.phase }];
     setAnswers(newAnswers);
@@ -329,7 +428,7 @@ export default function InnerGenApp() {
     }
   }
 
-  // ── BACK BUTTON ────────────────────────────────────────────────────────────
+  // ── BACK BUTTON ───────────────────────────────────────────────────────────
   function goBack() {
     if (qIdx === 0) return;
     const prev = answers[answers.length - 1];
@@ -340,7 +439,7 @@ export default function InnerGenApp() {
     setAnimKey(k => k + 1);
   }
 
-  // ── FETCH PERSONALIZED REPORT ──────────────────────────────────────────────
+  // ── FETCH REPORT ──────────────────────────────────────────────────────────
   async function fetchReport(ans, total) {
     setReporting(true);
     const summary = ans.map(a => `${a.phase}: ${a.pts}/4`).join(", ");
@@ -357,151 +456,44 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
         })
       });
       const d = await res.json();
-      setReport(d.text || "");
+      setReport(d.text || "Your results reveal a meaningful pattern. The awareness you brought to these questions is itself the first step of transformation.");
     } catch {
       setReport("Your results reveal a meaningful and specific pattern. Every answer you gave honestly has already begun to shift something. The awareness you brought to these questions is itself the first step of transformation.");
     }
     setReporting(false);
   }
 
-  // ── GENERATE MAGIC BOOK ────────────────────────────────────────────────────
+  // ── GENERATE MAGIC BOOK ───────────────────────────────────────────────────
   async function generateBook(tier) {
     setBookLoading(true);
     setBookTier(tier);
     setScreen("book");
 
     const lvl = getLevel(points);
-    const answerSummary = answers.map(a => `${a.phase}: ${a.pts}/4`).join(", ");
+    const answerSummary = answers.length > 0
+      ? answers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
+      : "Assessment completed";
     const maxTokens = tier === "spark" ? 1600 : tier === "rise" ? 2800 : 6000;
-
-    const prompts = {
-      spark: `You are a human potential guide. Create a personal Spark Guide for someone at the "${lvl.title}" level (score ${points}/32). Their assessment scores: ${answerSummary}.
-
-Your job is simple: help this person take clear, practical steps toward a richer, more meaningful life. Be warm, direct, and specific to their answers. No fluff. No jargon. Write in second person. Do not mention AI or technology.
-
-Use these section headings exactly:
-
-YOUR POTENTIAL BLUEPRINT
-Two paragraphs. What their answers reveal about where they are right now — honest, warm, specific. What's working. What's ready to shift.
-
-YOUR CORE STRENGTH
-The one strength their answers show most clearly. Name it simply. Explain in plain language why it matters for their life. Give one specific thing to do this week to use it.
-
-YOUR 7-DAY STARTER PLAN
-Seven daily practices. Each one named, one sentence of why it works, one exact instruction. Simple enough to start today. Practical enough to feel real.
-
-Day 1: [name] — [why it works] — [exact instruction]
-Day 2: [name] — [why it works] — [exact instruction]
-Day 3: [name] — [why it works] — [exact instruction]
-Day 4: [name] — [why it works] — [exact instruction]
-Day 5: [name] — [why it works] — [exact instruction]
-Day 6: [name] — [why it works] — [exact instruction]
-Day 7: [name] — [why it works] — [exact instruction]
-
-YOUR DAILY QUESTION
-One question to ask yourself every morning. Chosen specifically for where they are right now. Explain in two sentences why this question matters for them.
-
-YOUR NEXT BOOK
-One real book. Title and author. Two sentences on exactly why it fits where they are right now.
-
-Keep everything grounded, clear, and immediately usable. This person wants to live better — give them the first real steps.`,
-
-      rise: `You are a human potential guide. Create a Rise Guide for someone at the "${lvl.title}" level (score ${points}/32). Their assessment: ${answerSummary}.
-
-Your job: give this person a clear, practical, complete guide to meaningful change. Warm, direct, specific to their answers. No fluff. Second person. No mention of AI or technology. Reference research only when it makes the guidance more believable — one name, briefly.
-
-Use these section headings exactly:
-
-YOUR POTENTIAL BLUEPRINT
-Three paragraphs. Where they are now. What's already strong. What's ready to transform. Specific to their scores.
-
-YOUR THREE CORE STRENGTHS
-Three strengths their answers reveal. For each: name it clearly, explain why it matters in plain language, give one specific practice to develop it further.
-
-YOUR SHADOW PATTERN
-The one internal pattern most likely limiting them based on their answers. Name it plainly — no clinical language. Explain simply why it forms. Give one clear daily practice to dissolve it. Be compassionate but direct.
-
-YOUR 30-DAY PLAN
-Four weeks. Each week has a theme and three to four specific daily practices. Everything practical and doable. Based on their answers.
-
-Week 1 — [Theme]: [practices]
-Week 2 — [Theme]: [practices]
-Week 3 — [Theme]: [practices]
-Week 4 — [Theme]: [practices]
-
-WHAT CHANGES AT 30 DAYS
-Four specific things they will notice in themselves if they follow this plan. Concrete. Observable. Personal to their answers.
-
-YOUR FOUR RESOURCES
-Four real books. Each with title, author, and two sentences on why it fits their exact profile right now.
-
-Write as a coach who knows them well and wants them to actually succeed — not just feel inspired.`,
-
-      sovereign: `You are a human potential guide. Create a complete Sovereign Life Architecture for someone at the "${lvl.title}" level (score ${points}/32). Their assessment: ${answerSummary}.
-
-This is their most complete personal guide. Make every section practical, specific, and immediately useful. Warm, intelligent, direct. Second person throughout. No mention of AI or technology. Use research only where it strengthens a point — briefly, not academically.
-
-Use these section headings exactly — keep each section focused and practical:
-
-YOUR POTENTIAL BLUEPRINT
-Three paragraphs. The full honest picture of where they are. What's already exceptional. What's ready to break open. Specific to their pattern.
-
-YOUR GENIUS PROFILE
-The two ways their mind naturally works best based on their answers. Name each one simply. Show how it appears in their answers. Give one specific way to use each genius more deliberately this week.
-
-YOUR THREE CORE STRENGTHS
-Each strength named plainly. Why it matters. One specific practice to develop it. Based on their highest scores.
-
-YOUR SHADOW PATTERN
-Their most limiting internal pattern. Named plainly and compassionately. Why it formed. One clear daily practice to dissolve it starting today.
-
-YOUR IDENTITY SHIFT
-Who they are becoming based on their answers. Written as a clear statement of their emerging self — not who they were, who they are becoming. Two paragraphs. Specific and personal.
-
-YOUR WEALTH MINDSET
-How their specific thinking pattern right now is affecting their relationship with money and opportunity. Plain language. What to change specifically. Two to three practical shifts they can make immediately.
-
-YOUR RELATIONSHIP EDGE
-Their strongest relational quality and their biggest relational growth edge based on their answers. One practice for each.
-
-YOUR 90-DAY ROADMAP
-Three months of clear direction. Each month has a theme and specific weekly focus areas. Practical and progressive.
-
-Month 1 — [Theme]: [weekly focuses]
-Month 2 — [Theme]: [weekly focuses]
-Month 3 — [Theme]: [weekly focuses]
-
-YOUR DAILY PRACTICES
-Five core practices for their life going forward. Each named, one sentence of why it works for them specifically, one exact instruction. These are theirs to keep.
-
-YOUR RESOURCES
-Five real books, one podcast, one documentary. Each with a one sentence explanation of why it fits their profile exactly.
-
-YOUR MONTHLY CHECK-IN QUESTIONS
-Four questions to return to at the end of each month to measure real growth. Specific to their pattern.
-
-Write as if the most honest and caring coach they have ever met wrote this after studying them for months. Make it feel true. Make it feel like theirs. Be thorough but never repeat yourself — every sentence should add something new. Complete every section fully before moving to the next.`,
-    };
+    const prompt = getPrompt(tier, lvl, points, answerSummary);
 
     try {
       const res = await fetch("/api/generate-book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompts[tier], maxTokens }),
+        body: JSON.stringify({ prompt, maxTokens }),
       });
       const d = await res.json();
       setBookContent(d.text || "Your guide is ready.");
     } catch {
-      setBookContent("Your personal guide is ready. Please ensure a stable connection and try again if needed.");
+      setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
     }
     setBookLoading(false);
   }
 
-  // ── PAYWALL ────────────────────────────────────────────────────────────────
+  // ── PAYWALL ───────────────────────────────────────────────────────────────
   function openPaywall(tierId) { setPaywallTier(tierId); setPaywall(true); }
 
   function handleStripeRedirect(tierId) {
-    // Save quiz state before leaving — localStorage survives page redirects on all browsers
     localStorage.setItem("ig_answers", JSON.stringify(answers));
     localStorage.setItem("ig_points", String(points));
     localStorage.setItem("ig_tier", tierId);
@@ -511,11 +503,11 @@ Write as if the most honest and caring coach they have ever met wrote this after
   function downloadBook() {
     const t = TIERS.find(t => t.id === bookTier);
     const blob = new Blob([
-      `INNERGEN — YOUR PERSONAL GUIDE\n`,
-      `${t?.label} Edition · ${level.title} · Score ${points}/32\n`,
+      `INNERGEN \u2014 YOUR PERSONAL GUIDE\n`,
+      `${t?.label} Edition \u00B7 ${level.title} \u00B7 Score ${points}/32\n`,
       `${"─".repeat(50)}\n\n`,
       bookContent
-    ], { type: "text/plain" });
+    ], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = `InnerGen-${t?.label}-Guide.txt`; a.click();
@@ -535,7 +527,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
     }
   }
 
-  // ── SHARED STYLES ──────────────────────────────────────────────────────────
+  // ── STYLES ────────────────────────────────────────────────────────────────
   const card = {
     background: T.card, border: `1px solid ${T.border}`,
     borderRadius: 18, backdropFilter: "blur(14px)",
@@ -550,8 +542,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
   const outlineBtn = {
     width: "100%", padding: "13px 20px", borderRadius: 12,
     border: `1.5px solid ${T.goldDim}`, background: "transparent",
-    color: T.gold, fontFamily: FONT, fontWeight: 600, fontSize: 13,
-    cursor: "pointer",
+    color: T.gold, fontFamily: FONT, fontWeight: 600, fontSize: 13, cursor: "pointer",
   };
   const dimBtn = {
     width: "100%", padding: "12px 20px", borderRadius: 12, border: "none",
@@ -561,9 +552,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
   const wrap  = { minHeight: "100vh", background: T.bg, position: "relative", overflow: "hidden" };
   const inner = { maxWidth: 500, margin: "0 auto", padding: "20px 18px 70px", position: "relative", zIndex: 2 };
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // VERIFYING SCREEN — shown while we check payment with Stripe
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── VERIFYING SCREEN ──────────────────────────────────────────────────────
   if (screen === "verifying") return (
     <div style={{ ...wrap, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{CSS}</style>
@@ -576,9 +565,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
     </div>
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // SPLASH
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── SPLASH ────────────────────────────────────────────────────────────────
   if (screen === "splash") return (
     <div style={wrap}>
       <style>{CSS}</style>
@@ -613,9 +600,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
     </div>
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // QUIZ
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── QUIZ ──────────────────────────────────────────────────────────────────
   if (screen === "quiz") return (
     <div style={wrap}>
       <style>{CSS}</style>
@@ -624,11 +609,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {qIdx > 0 && (
-              <button onClick={goBack} style={{
-                background: "none", border: `1px solid ${T.border}`,
-                borderRadius: 8, padding: "5px 12px", color: T.muted,
-                fontFamily: FONT, fontSize: 12, cursor: "pointer",
-              }}>← Back</button>
+              <button onClick={goBack} style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.muted, fontFamily: FONT, fontSize: 12, cursor: "pointer" }}>← Back</button>
             )}
             <span style={{ fontFamily: FONT, fontSize: 12, color: T.muted }}>Q{qIdx + 1} of {QUIZ.length}</span>
           </div>
@@ -642,9 +623,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
             <span style={{ fontSize: 18 }}>{currentQ.icon}</span>
             <span style={{ fontFamily: FONT_B, fontSize: 11, letterSpacing: 2, color: "rgba(242,201,76,0.8)", textTransform: "uppercase", fontWeight: 700 }}>{currentQ.phase}</span>
           </div>
-          <h2 style={{ fontFamily: FONT_H, fontSize: 17, fontWeight: 700, lineHeight: 1.6, color: "#FFFFFF", marginBottom: 22 }}>
-            {currentQ.question}
-          </h2>
+          <h2 style={{ fontFamily: FONT_H, fontSize: 17, fontWeight: 700, lineHeight: 1.6, color: "#FFFFFF", marginBottom: 22 }}>{currentQ.question}</h2>
           {!insight && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {currentQ.options.map((opt, i) => (
@@ -684,9 +663,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
     </div>
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // DASHBOARD
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── DASHBOARD ─────────────────────────────────────────────────────────────
   if (screen === "dashboard") {
     const tabs = [
       { id: "result", label: "My Result" },
@@ -716,13 +693,15 @@ Write as if the most honest and caring coach they have ever met wrote this after
           ))}
         </div>
         <div style={inner}>
+
+          {/* MY RESULT */}
           {activeTab === "result" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ ...card, padding: "28px 22px", marginBottom: 16, textAlign: "center" }}>
                 <div style={{ fontSize: 50, marginBottom: 8, animation: "beat 2.5s infinite" }}>{level.emoji}</div>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 4, color: T.goldDim, marginBottom: 8, textTransform: "uppercase" }}>Your Potential Profile</div>
                 <h2 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: level.color, marginBottom: 10 }}>{level.title}</h2>
-                <p style={{ fontFamily: FONT, fontSize: 13.5, color: T.muted, lineHeight: 1.85, marginBottom: 22 }}>{level.desc}</p>
+                <p style={{ fontFamily: FONT_B, fontSize: 14, color: "rgba(237,232,212,0.82)", lineHeight: 1.85, marginBottom: 22 }}>{level.desc}</p>
                 <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                   {[{ label: "Score", value: `${points}/32` }, { label: "Profile", value: level.emoji }].map(s => (
                     <div key={s.label} style={{ background: "rgba(242,201,76,0.07)", border: `1px solid ${T.border}`, borderRadius: 12, padding: "12px 22px" }}>
@@ -732,6 +711,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   ))}
                 </div>
               </div>
+
               <div style={{ ...card, padding: "22px", marginBottom: 16 }}>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 14, textTransform: "uppercase" }}>✦ Your Result</div>
                 {reporting ? (
@@ -743,16 +723,18 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   <p style={{ fontFamily: FONT_B, fontSize: 15, color: "rgba(237,232,212,0.88)", lineHeight: 2, whiteSpace: "pre-wrap", fontWeight: 400 }}>{report}</p>
                 )}
               </div>
+
               <div style={{ ...card, padding: "22px", marginBottom: 16, border: `1px solid rgba(242,201,76,0.3)`, background: "rgba(242,201,76,0.03)" }}>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Go Deeper</div>
                 <h3 style={{ fontFamily: FONT, fontSize: 20, color: T.text, fontWeight: 700, marginBottom: 10 }}>Your Personal Magic Book</h3>
-                <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 18 }}>
+                <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 18 }}>
                   A complete personal guide built entirely from your answers. Everything you need to know about yourself — and exactly what to do next.
                 </p>
                 <button style={goldBtn} onClick={() => setActiveTab("books")}>EXPLORE MY MAGIC BOOKS →</button>
               </div>
+
               <div style={{ ...card, padding: "20px 22px", marginBottom: 16 }}>
-                <div style={{ fontFamily: FONT_H, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Share Your Result</div>
+                <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Share Your Result</div>
                 <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.75, marginBottom: 16 }}>
                   Know someone who needs to hear this? Share your result and invite them to discover their own.
                 </p>
@@ -775,17 +757,19 @@ Write as if the most honest and caring coach they have ever met wrote this after
                 </div>
                 {shareMsg && <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.green, textAlign: "center", marginTop: 10 }}>{shareMsg}</p>}
               </div>
+
               <button style={dimBtn} onClick={() => { setScreen("quiz"); setQIdx(0); setSelected(null); setInsight(null); setPoints(0); setAnswers([]); setReport(""); setAnimKey(0); }}>
                 ↩ Retake Assessment
               </button>
             </div>
           )}
 
+          {/* MAGIC BOOKS */}
           {activeTab === "books" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ marginBottom: 22 }}>
                 <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 8 }}>Your Magic Books</h2>
-                <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted, lineHeight: 1.75 }}>
+                <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.75 }}>
                   Each guide is built entirely from your answers. Personalized for you. No two are ever the same.
                 </p>
               </div>
@@ -793,18 +777,18 @@ Write as if the most honest and caring coach they have ever met wrote this after
                 <div key={tier.id} style={{ ...card, padding: "24px 22px", marginBottom: 16, border: `1px solid ${tier.color}20` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                     <div>
-                      <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: tier.color, textTransform: "uppercase", marginBottom: 6 }}>
+                      <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 3, color: tier.color, textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>
                         {tier.emoji} {tier.label}
                       </div>
                       <h3 style={{ fontFamily: FONT, fontSize: 18, color: T.text, fontWeight: 700 }}>{tier.tagline}</h3>
                     </div>
                     <div style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: tier.color, flexShrink: 0, marginLeft: 12 }}>{tier.price}</div>
                   </div>
-                  <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 16 }}>{tier.description}</p>
+                  <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 16 }}>{tier.description}</p>
                   {tier.features.map((f, i) => (
                     <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
                       <span style={{ color: tier.color, fontSize: 12, flexShrink: 0, marginTop: 2 }}>✓</span>
-                      <span style={{ fontFamily: FONT, fontSize: 12.5, color: T.muted, lineHeight: 1.55 }}>{f}</span>
+                      <span style={{ fontFamily: FONT_B, fontSize: 12.5, color: T.muted, lineHeight: 1.55 }}>{f}</span>
                     </div>
                   ))}
                   <div style={{ marginTop: 18 }}>
@@ -821,17 +805,18 @@ Write as if the most honest and caring coach they have ever met wrote this after
                 </div>
               ))}
               <div style={{ ...card, padding: "18px 20px", textAlign: "center", marginTop: 8 }}>
-                <p style={{ fontFamily: FONT, fontSize: 12, fontStyle: "italic", color: T.dim, lineHeight: 1.7 }}>
+                <p style={{ fontFamily: FONT_B, fontSize: 12, fontStyle: "italic", color: T.dim, lineHeight: 1.7 }}>
                   One-time purchase · Instant access · Yours forever · No subscription
                 </p>
               </div>
             </div>
           )}
 
+          {/* PROGRESS */}
           {activeTab === "progress" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 6 }}>Your Progress</h2>
-              <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted, marginBottom: 22, lineHeight: 1.7 }}>
+              <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, marginBottom: 22, lineHeight: 1.7 }}>
                 A breakdown of your scores across all eight dimensions of human potential.
               </p>
               <div style={{ ...card, padding: "24px 22px", marginBottom: 16 }}>
@@ -843,8 +828,8 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   return (
                     <div key={q.id} style={{ marginBottom: 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <span style={{ fontFamily: FONT, fontSize: 12, color: T.muted }}>{q.icon} {q.phase}</span>
-                        <span style={{ fontFamily: FONT, fontSize: 12, color: col, fontWeight: 700 }}>{ans ? `${ans.pts}/4` : "—"}</span>
+                        <span style={{ fontFamily: FONT_B, fontSize: 12, color: T.muted }}>{q.icon} {q.phase}</span>
+                        <span style={{ fontFamily: FONT_B, fontSize: 12, color: col, fontWeight: 700 }}>{ans ? `${ans.pts}/4` : "—"}</span>
                       </div>
                       <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${pct}%`, background: col, borderRadius: 2, transition: "width 0.8s ease" }} />
@@ -859,8 +844,8 @@ Write as if the most honest and caring coach they have ever met wrote this after
                   <div style={{ fontSize: 40 }}>{level.emoji}</div>
                   <div>
                     <div style={{ fontFamily: FONT, fontSize: 36, fontWeight: 700, color: level.color, lineHeight: 1 }}>{points}<span style={{ fontSize: 16, color: T.dim }}>/32</span></div>
-                    <div style={{ fontFamily: FONT, fontSize: 13, color: T.muted, marginTop: 4 }}>{level.title}</div>
-                    <div style={{ fontFamily: FONT, fontSize: 11, color: T.dim, marginTop: 3 }}>Retake to track your growth over time</div>
+                    <div style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, marginTop: 4 }}>{level.title}</div>
+                    <div style={{ fontFamily: FONT_B, fontSize: 11, color: T.dim, marginTop: 3 }}>Retake to track your growth over time</div>
                   </div>
                 </div>
               </div>
@@ -868,6 +853,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
           )}
         </div>
 
+        {/* PAYWALL MODAL */}
         {paywall && paywallTier && (() => {
           const tier = TIERS.find(t => t.id === paywallTier);
           return (
@@ -876,26 +862,20 @@ Write as if the most honest and caring coach they have ever met wrote this after
               <div style={{ ...card, width: "100%", maxWidth: 480, padding: "32px 26px", border: `1px solid ${tier.color}35` }}>
                 <div style={{ textAlign: "center", marginBottom: 22 }}>
                   <div style={{ fontSize: 40, marginBottom: 10 }}>{tier.emoji}</div>
-                  <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 8 }}>
-                    {tier.label} — Your Personal Guide
-                  </h2>
-                  <p style={{ fontFamily: FONT, fontSize: 13, color: T.muted, lineHeight: 1.8 }}>
-                    Built entirely from your answers. Personalized for you. Instant access.
-                  </p>
+                  <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 8 }}>{tier.label} — Your Personal Guide</h2>
+                  <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8 }}>Built entirely from your answers. Personalized for you. Instant access.</p>
                 </div>
                 {tier.features.map((f, i) => (
                   <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 9 }}>
                     <span style={{ color: tier.color, fontSize: 13, flexShrink: 0, marginTop: 1 }}>✓</span>
-                    <span style={{ fontFamily: FONT, fontSize: 13, color: T.muted }}>{f}</span>
+                    <span style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}>{f}</span>
                   </div>
                 ))}
                 <div style={{ textAlign: "center", margin: "22px 0 8px" }}>
                   <span style={{ fontFamily: FONT, fontSize: 40, fontWeight: 700, color: tier.color }}>{tier.price}</span>
-                  <span style={{ fontFamily: FONT, fontSize: 13, color: T.muted }}> · one time · yours forever</span>
+                  <span style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}> · one time · yours forever</span>
                 </div>
-                <p style={{ fontFamily: FONT, fontSize: 11, color: T.dim, textAlign: "center", marginBottom: 20 }}>
-                  No subscription. No upsells. Instant access.
-                </p>
+                <p style={{ fontFamily: FONT_B, fontSize: 11, color: T.dim, textAlign: "center", marginBottom: 20 }}>No subscription. No upsells. Instant access.</p>
                 <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${tier.color}, ${tier.color}cc)`, marginBottom: 10 }}
                   onClick={() => handleStripeRedirect(paywallTier)}>
                   UNLOCK MY {tier.label.toUpperCase()} GUIDE →
@@ -915,9 +895,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // MAGIC BOOK SCREEN
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── MAGIC BOOK ────────────────────────────────────────────────────────────
   if (screen === "book") {
     const tier = TIERS.find(t => t.id === bookTier);
     return (
@@ -932,7 +910,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
             <div style={{ fontSize: 48, marginBottom: 10, animation: bookLoading ? "spin 2s linear infinite" : "beat 3s infinite" }}>
               {bookLoading ? "⚙️" : "📖"}
             </div>
-            <div style={{ fontFamily: FONT_H, fontSize: 10, letterSpacing: 4, color: T.goldDim, marginBottom: 8, textTransform: "uppercase" }}>
+            <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 4, color: T.goldDim, marginBottom: 8, textTransform: "uppercase", fontWeight: 700 }}>
               {tier?.emoji} {tier?.label} · Your Personal Guide
             </div>
             <h1 style={{ fontFamily: FONT_H, fontSize: 26, fontWeight: 700, color: T.gold, marginBottom: 8 }}>{level.title}</h1>
@@ -967,9 +945,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // TERMS AND CONDITIONS
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── TERMS ─────────────────────────────────────────────────────────────────
   if (screen === "terms") return (
     <div style={wrap}>
       <style>{CSS}</style>
@@ -979,7 +955,7 @@ Write as if the most honest and caring coach they have ever met wrote this after
           ← Back
         </button>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontFamily: FONT_H, fontSize: 10, letterSpacing: 5, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>InnerGen</div>
+          <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 5, color: T.goldDim, marginBottom: 10, textTransform: "uppercase", fontWeight: 700 }}>InnerGen</div>
           <h1 style={{ fontFamily: FONT_H, fontSize: 24, fontWeight: 700, color: T.text }}>Terms & Conditions</h1>
           <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, marginTop: 6 }}>Last updated: May 2026</p>
         </div>
