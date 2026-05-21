@@ -121,10 +121,10 @@ const QUIZ = [
 
 // ─── LEVELS ───────────────────────────────────────────────────────────────────
 const LEVELS = [
-  { min: 8,  max: 14, title: "The Latent Giant",       emoji: "🌱", color: "#79CCFF", desc: "Your potential is fully intact and completely unrealized — which means the upside ahead of you is extraordinary. Every person who ever achieved something remarkable started exactly here." },
-  { min: 15, max: 21, title: "The Stirring Mind",      emoji: "🌅", color: "#F0A060", desc: "Something real is activating inside you. You feel a pull toward more. Research shows this awareness alone — this exact feeling — is the neurological precursor to genuine transformation." },
-  { min: 22, max: 26, title: "The Conscious Builder",  emoji: "🔥", color: "#F2C94C", desc: "You are operating with deliberate intention. Behavioral science confirms: people at your stage who keep going don't just improve — they compound. You are genuinely rare." },
-  { min: 27, max: 32, title: "The Awakened",           emoji: "⚡", color: "#5FFFA0", desc: "You are operating from your highest design. The science is clear: you have built the thinking architecture that produces what others call extraordinary. This is your natural state." },
+  { min: 8,  max: 14, title: "The Latent Giant",      emoji: "🌱", color: "#79CCFF", desc: "Your potential is fully intact and completely unrealized — which means the upside ahead of you is extraordinary. Every person who ever achieved something remarkable started exactly here." },
+  { min: 15, max: 21, title: "The Stirring Mind",     emoji: "🌅", color: "#F0A060", desc: "Something real is activating inside you. You feel a pull toward more. Research shows this awareness alone — this exact feeling — is the neurological precursor to genuine transformation." },
+  { min: 22, max: 26, title: "The Conscious Builder", emoji: "🔥", color: "#F2C94C", desc: "You are operating with deliberate intention. Behavioral science confirms: people at your stage who keep going don't just improve — they compound. You are genuinely rare." },
+  { min: 27, max: 32, title: "The Awakened",          emoji: "⚡", color: "#5FFFA0", desc: "You are operating from your highest design. The science is clear: you have built the thinking architecture that produces what others call extraordinary. This is your natural state." },
 ];
 
 // ─── TIERS ────────────────────────────────────────────────────────────────────
@@ -183,10 +183,7 @@ async function streamBookContent(prompt, maxTokens, onChunk, onDone, onError) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, maxTokens }),
     });
-
-    if (!res.ok) {
-      throw new Error(`Server error: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -195,10 +192,8 @@ async function streamBookContent(prompt, maxTokens, onChunk, onDone, onError) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       const chunk = decoder.decode(value);
       const lines = chunk.split("\n").filter(l => l.trim());
-
       for (const line of lines) {
         if (line.startsWith("data: ")) {
           const data = line.slice(6);
@@ -368,8 +363,6 @@ export default function InnerGenApp() {
   const [points,      setPoints]      = useState(0);
   const [answers,     setAnswers]     = useState([]);
   const [insight,     setInsight]     = useState(null);
-  const [report,      setReport]      = useState("");
-  const [reporting,   setReporting]   = useState(false);
   const [activeTab,   setActiveTab]   = useState("result");
   const [paywall,     setPaywall]     = useState(false);
   const [paywallTier, setPaywallTier] = useState(null);
@@ -388,10 +381,9 @@ export default function InnerGenApp() {
 
   // ── PAYMENT VERIFICATION ──────────────────────────────────────────────────
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params    = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
-    const tier = params.get("tier");
-
+    const tier      = params.get("tier");
     if (!sessionId || !tier) return;
 
     window.history.replaceState({}, "", "/");
@@ -412,33 +404,28 @@ export default function InnerGenApp() {
     setBookTier(savedTier);
 
     fetch(`/api/verify-session?session_id=${sessionId}`)
-      .then(res => res.json())
+      .then(r => r.json())
       .then(data => {
         if (data.verified) {
           const confirmedTier = data.tier || savedTier;
           setPurchased(p => ({ ...p, [confirmedTier]: true }));
           setBookLoading(true);
           setBookTier(confirmedTier);
-          setScreen("book");
           setBookContent("");
+          setScreen("book");
 
           const lvl = getLevel(restoredPoints);
           const answerSummary = restoredAnswers.length > 0
             ? restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
             : "Assessment completed — generate a powerful personalized guide for a growth-oriented person";
           const maxTokens = confirmedTier === "spark" ? 1600 : confirmedTier === "rise" ? 2800 : 6000;
-          const prompt = getPrompt(confirmedTier, lvl, restoredPoints, answerSummary);
+          const prompt    = getPrompt(confirmedTier, lvl, restoredPoints, answerSummary);
 
-          // ✅ FIX 1: Stream after payment verification
           streamBookContent(
-            prompt,
-            maxTokens,
-            (text) => setBookContent(text),          // live update as tokens arrive
-            (_finalText) => setBookLoading(false),   // done
-            () => {
-              setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
-              setBookLoading(false);
-            }
+            prompt, maxTokens,
+            (text) => setBookContent(text),
+            ()     => setBookLoading(false),
+            ()     => { setBookContent("Your personal guide is ready. Please ensure a stable connection and try again."); setBookLoading(false); }
           );
         } else {
           setScreen("splash");
@@ -461,12 +448,14 @@ export default function InnerGenApp() {
     setAnswers(newAnswers);
     const next = qIdx + 1;
     if (next < QUIZ.length) {
-      setQIdx(next); setSelected(null); setInsight(null); setPoints(p => p + selected.pts); setAnimKey(k => k + 1);
+      setQIdx(next); setSelected(null); setInsight(null);
+      setPoints(p => p + selected.pts); setAnimKey(k => k + 1);
     } else {
       const total = newAnswers.reduce((s, a) => s + a.pts, 0);
       setPoints(total);
-      setScreen("dashboard"); setActiveTab("result");
-      fetchReport(newAnswers, total);
+      // ✅ Go directly to dashboard → books tab (no report fetch)
+      setScreen("dashboard");
+      setActiveTab("books");
     }
   }
 
@@ -481,28 +470,6 @@ export default function InnerGenApp() {
     setAnimKey(k => k + 1);
   }
 
-  // ── FETCH REPORT ──────────────────────────────────────────────────────────
-  async function fetchReport(ans, total) {
-    setReporting(true);
-    setReport("");
-    const summary = ans.map(a => `${a.phase}: ${a.pts}/4`).join(", ");
-    const lvl = getLevel(total);
-
-    // ✅ FIX 2: Stream the dashboard report
-    await streamBookContent(
-      `You are a human potential specialist grounded in neuroscience, psychology, and behavioral science. Someone just completed a self-awareness assessment. Their results: ${summary}. Overall profile: "${lvl.title}". Total score: ${total}/32.
-
-Write a warm, intelligent 3-paragraph personal result. Ground every insight in named researchers or real studies. Paragraph 1: what their specific pattern reveals about their current mindset state — name the science. Paragraph 2: their clearest growth edge based on their lowest-scoring areas — be precise, not general. Paragraph 3: one exact, research-backed action that will create the most leverage for them specifically. End with one sentence from a scientist or philosopher. No bullet points. Pure flowing prose. Second person. No preamble. No mention of AI or technology. Write as if a deeply knowledgeable human wrote this specifically for them.`,
-      1000,
-      (text) => setReport(text),
-      (_finalText) => setReporting(false),
-      () => {
-        setReport("Your results reveal a meaningful and specific pattern. Every answer you gave honestly has already begun to shift something. The awareness you brought to these questions is itself the first step of transformation.");
-        setReporting(false);
-      }
-    );
-  }
-
   // ── GENERATE MAGIC BOOK ───────────────────────────────────────────────────
   async function generateBook(tier) {
     setBookLoading(true);
@@ -515,18 +482,13 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
       ? answers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
       : "Assessment completed";
     const maxTokens = tier === "spark" ? 1600 : tier === "rise" ? 2800 : 6000;
-    const prompt = getPrompt(tier, lvl, points, answerSummary);
+    const prompt    = getPrompt(tier, lvl, points, answerSummary);
 
-    // ✅ FIX 3: Stream when reopening a purchased book
     await streamBookContent(
-      prompt,
-      maxTokens,
+      prompt, maxTokens,
       (text) => setBookContent(text),
-      (_finalText) => setBookLoading(false),
-      () => {
-        setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
-        setBookLoading(false);
-      }
+      ()     => setBookLoading(false),
+      ()     => { setBookContent("Your personal guide is ready. Please ensure a stable connection and try again."); setBookLoading(false); }
     );
   }
 
@@ -535,31 +497,31 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
 
   function handleStripeRedirect(tierId) {
     localStorage.setItem("ig_answers", JSON.stringify(answers));
-    localStorage.setItem("ig_points", String(points));
-    localStorage.setItem("ig_tier", tierId);
+    localStorage.setItem("ig_points",  String(points));
+    localStorage.setItem("ig_tier",    tierId);
     window.location.href = PAYMENT_LINKS[tierId];
   }
 
   function downloadBook() {
-    const t = TIERS.find(t => t.id === bookTier);
+    const t    = TIERS.find(t => t.id === bookTier);
     const blob = new Blob([
       `INNERGEN \u2014 YOUR PERSONAL GUIDE\n`,
       `${t?.label} Edition \u00B7 ${level.title} \u00B7 Score ${points}/32\n`,
       `${"─".repeat(50)}\n\n`,
-      bookContent
+      bookContent,
     ], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a   = document.createElement("a");
     a.href = url; a.download = `InnerGen-${t?.label}-Guide.txt`; a.click();
     URL.revokeObjectURL(url);
   }
 
   function handleShare(platform) {
-    const msg = `I just discovered I'm "${level.title}" on InnerGen — a science-based human potential assessment. Score: ${points}/32. Take it free → innergen.app`;
+    const msg     = `I just discovered I'm "${level.title}" on InnerGen — a science-based human potential assessment. Score: ${points}/32. Take it free → innergen.app`;
     const encoded = encodeURIComponent(msg);
     if (platform === "whatsapp") window.open(`https://wa.me/?text=${encoded}`, "_blank");
     else if (platform === "twitter") window.open(`https://twitter.com/intent/tweet?text=${encoded}`, "_blank");
-    else if (platform === "email") window.open(`mailto:?subject=My InnerGen Result&body=${encoded}`, "_blank");
+    else if (platform === "email")   window.open(`mailto:?subject=My InnerGen Result&body=${encoded}`, "_blank");
     else if (platform === "copy") {
       navigator.clipboard?.writeText(msg);
       setShareMsg("Copied! Share it anywhere.");
@@ -592,7 +554,7 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
   const wrap  = { minHeight: "100vh", background: T.bg, position: "relative", overflow: "hidden" };
   const inner = { maxWidth: 500, margin: "0 auto", padding: "20px 18px 70px", position: "relative", zIndex: 2 };
 
-  // ── VERIFYING SCREEN ──────────────────────────────────────────────────────
+  // ── VERIFYING ─────────────────────────────────────────────────────────────
   if (screen === "verifying") return (
     <div style={{ ...wrap, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{CSS}</style>
@@ -613,7 +575,7 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
       <div style={{ ...inner, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <div style={{ ...card, padding: "44px 30px", textAlign: "center", animation: "fadeUp 0.65s ease", width: "100%" }}>
           <div style={{ fontSize: 54, marginBottom: 10, animation: "beat 3s infinite" }}>⚡</div>
-          <div style={{ fontFamily: FONT_B, fontSize: 11, letterSpacing: 3, color: "rgba(242,201,76,0.7)", marginBottom: 14, textTransform: "uppercase", fontWeight: 700, whiteSpace: "nowrap" }}>InnerGen · Human Potential Lab</div>
+          <div style={{ fontFamily: FONT_B, fontSize: 11, letterSpacing: 3, color: "rgba(242,201,76,0.7)", marginBottom: 14, textTransform: "uppercase", fontWeight: 700 }}>InnerGen · Human Potential Lab</div>
           <h1 style={{ fontFamily: FONT, fontSize: 32, fontWeight: 700, lineHeight: 1.2, marginBottom: 16, color: T.text }}>
             Discover What Science Says<br />
             <span style={{ color: T.gold }}>You're Actually Capable Of</span>
@@ -706,8 +668,8 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
   // ── DASHBOARD ─────────────────────────────────────────────────────────────
   if (screen === "dashboard") {
     const tabs = [
-      { id: "result", label: "My Result" },
-      { id: "books",  label: "Magic Books" },
+      { id: "result",   label: "My Result" },
+      { id: "books",    label: "Magic Books" },
       { id: "progress", label: "Progress" },
     ];
     return (
@@ -734,7 +696,7 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
         </div>
         <div style={inner}>
 
-          {/* MY RESULT */}
+          {/* ── MY RESULT ── */}
           {activeTab === "result" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ ...card, padding: "28px 22px", marginBottom: 16, textAlign: "center" }}>
@@ -752,27 +714,17 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
                 </div>
               </div>
 
-              <div style={{ ...card, padding: "22px", marginBottom: 16 }}>
-                <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 14, textTransform: "uppercase" }}>✦ Your Result</div>
-                {reporting ? (
-                  <div style={{ textAlign: "center", padding: "32px 0" }}>
-                    <div style={{ width: 26, height: 26, border: `3px solid ${T.border}`, borderTopColor: T.gold, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-                    <p style={{ fontFamily: FONT_B, fontSize: 14, color: "rgba(237,232,212,0.7)" }}>Preparing your personalized result...</p>
-                  </div>
-                ) : (
-                  <p style={{ fontFamily: FONT_B, fontSize: 15, color: "rgba(237,232,212,0.88)", lineHeight: 2, whiteSpace: "pre-wrap", fontWeight: 400 }}>{report}</p>
-                )}
-              </div>
-
-              <div style={{ ...card, padding: "22px", marginBottom: 16, border: `1px solid rgba(242,201,76,0.3)`, background: "rgba(242,201,76,0.03)" }}>
-                <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Go Deeper</div>
-                <h3 style={{ fontFamily: FONT, fontSize: 20, color: T.text, fontWeight: 700, marginBottom: 10 }}>Your Personal Magic Book</h3>
-                <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 18 }}>
-                  A complete personal guide built entirely from your answers. Everything you need to know about yourself — and exactly what to do next.
+              {/* ── CALL TO ACTION → MAGIC BOOKS ── */}
+              <div style={{ ...card, padding: "26px 22px", marginBottom: 16, border: `1px solid rgba(242,201,76,0.3)`, background: "rgba(242,201,76,0.03)" }}>
+                <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Your Next Step</div>
+                <h3 style={{ fontFamily: FONT, fontSize: 22, color: T.text, fontWeight: 700, marginBottom: 12 }}>Your Personal Magic Book is waiting</h3>
+                <p style={{ fontFamily: FONT_B, fontSize: 14, color: T.muted, lineHeight: 1.85, marginBottom: 20 }}>
+                  Based on your score of <strong style={{ color: T.gold }}>{points}/32</strong> as <strong style={{ color: level.color }}>{level.title}</strong>, your guide is ready to be built — personalized entirely from your answers. No two are ever the same.
                 </p>
                 <button style={goldBtn} onClick={() => setActiveTab("books")}>EXPLORE MY MAGIC BOOKS →</button>
               </div>
 
+              {/* ── SHARE ── */}
               <div style={{ ...card, padding: "20px 22px", marginBottom: 16 }}>
                 <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Share Your Result</div>
                 <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.75, marginBottom: 16 }}>
@@ -780,9 +732,9 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
                 </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {[
-                    { platform: "whatsapp", label: "WhatsApp", emoji: "💬", color: "#25D366" },
+                    { platform: "whatsapp", label: "WhatsApp",  emoji: "💬", color: "#25D366" },
                     { platform: "twitter",  label: "X / Twitter", emoji: "𝕏", color: "#1DA1F2" },
-                    { platform: "email",    label: "Email", emoji: "✉️", color: T.gold },
+                    { platform: "email",    label: "Email",     emoji: "✉️", color: T.gold },
                     { platform: "copy",     label: "Copy Link", emoji: "🔗", color: T.muted },
                   ].map(s => (
                     <button key={s.platform} onClick={() => handleShare(s.platform)} style={{
@@ -798,13 +750,13 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
                 {shareMsg && <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.green, textAlign: "center", marginTop: 10 }}>{shareMsg}</p>}
               </div>
 
-              <button style={dimBtn} onClick={() => { setScreen("quiz"); setQIdx(0); setSelected(null); setInsight(null); setPoints(0); setAnswers([]); setReport(""); setAnimKey(0); }}>
+              <button style={dimBtn} onClick={() => { setScreen("quiz"); setQIdx(0); setSelected(null); setInsight(null); setPoints(0); setAnswers([]); setAnimKey(0); }}>
                 ↩ Retake Assessment
               </button>
             </div>
           )}
 
-          {/* MAGIC BOOKS */}
+          {/* ── MAGIC BOOKS ── */}
           {activeTab === "books" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ marginBottom: 22 }}>
@@ -852,7 +804,7 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
             </div>
           )}
 
-          {/* PROGRESS */}
+          {/* ── PROGRESS ── */}
           {activeTab === "progress" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 6 }}>Your Progress</h2>
@@ -893,7 +845,7 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
           )}
         </div>
 
-        {/* PAYWALL MODAL */}
+        {/* ── PAYWALL MODAL ── */}
         {paywall && paywallTier && (() => {
           const tier = TIERS.find(t => t.id === paywallTier);
           return (
@@ -956,12 +908,13 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
             <h1 style={{ fontFamily: FONT_H, fontSize: 26, fontWeight: 700, color: T.gold, marginBottom: 8 }}>{level.title}</h1>
             <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}>Score {points}/32 · Personalized for you</p>
           </div>
+
           {bookLoading && !bookContent ? (
             <div style={{ ...card, padding: "44px 22px", textAlign: "center" }}>
               <div style={{ width: 32, height: 32, border: `3px solid ${T.border}`, borderTopColor: T.gold, borderRadius: "50%", animation: "spin 0.9s linear infinite", margin: "0 auto 18px" }} />
               <p style={{ fontFamily: FONT_B, fontSize: 15, color: T.muted, lineHeight: 1.8 }}>
-                Preparing your personal guide...<br />
-                <span style={{ fontSize: 13, color: T.dim }}>Your guide is streaming in now ✨</span>
+                Building your personal guide...<br />
+                <span style={{ fontSize: 13, color: T.dim }}>Your words are streaming in now ✨</span>
               </p>
             </div>
           ) : (
@@ -975,6 +928,7 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
                 )}
                 <p style={{ fontFamily: FONT_B, fontSize: 15, color: "rgba(237,232,212,0.88)", lineHeight: 2.1, whiteSpace: "pre-wrap", fontWeight: 400 }}>{bookContent}</p>
               </div>
+
               {!bookLoading && (
                 <>
                   {/* ── SAVE REMINDER ── */}
