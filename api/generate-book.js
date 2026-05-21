@@ -1,3 +1,7 @@
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -23,13 +27,12 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: maxTokens || 1600,
+        max_tokens: maxTokens || 1200,
         stream: true,
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
-    // Set headers for Server-Sent Events streaming
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -48,7 +51,6 @@ export default async function handler(req, res) {
         if (line.startsWith("data: ")) {
           const data = line.slice(6);
           if (data === "[DONE]") continue;
-
           try {
             const parsed = JSON.parse(data);
             if (parsed.type === "content_block_delta") {
