@@ -175,7 +175,7 @@ function getLevel(pts) {
   return LEVELS.find(l => pts >= l.min && pts <= l.max) || LEVELS[0];
 }
 
-// ─── STREAMING HELPER ─────────────────────────────────────────────────────────
+// ─── FETCH BOOK HELPER ────────────────────────────────────────────────────────
 async function streamBookContent(prompt, maxTokens, onChunk, onDone, onError) {
   try {
     const res = await fetch("/api/generate-book", {
@@ -184,31 +184,10 @@ async function streamBookContent(prompt, maxTokens, onChunk, onDone, onError) {
       body: JSON.stringify({ prompt, maxTokens }),
     });
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let fullText = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value);
-      const lines = chunk.split("\n").filter(l => l.trim());
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.text) {
-              fullText += parsed.text;
-              onChunk(fullText);
-            }
-          } catch {}
-        }
-      }
-    }
-    onDone(fullText);
+    const data = await res.json();
+    if (!data.text) throw new Error("Empty response");
+    onChunk(data.text);
+    onDone(data.text);
   } catch (err) {
     onError(err);
   }
@@ -455,7 +434,7 @@ export default function InnerGenApp() {
       setPoints(total);
       // ✅ Go directly to dashboard → books tab (no report fetch)
       setScreen("dashboard");
-      setActiveTab("result");
+      setActiveTab("books");
     }
   }
 
