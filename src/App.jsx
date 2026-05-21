@@ -418,7 +418,7 @@ export default function InnerGenApp() {
           const answerSummary = restoredAnswers.length > 0
             ? restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
             : "Assessment completed — generate a powerful personalized guide for a growth-oriented person";
-          const maxTokens = confirmedTier === "spark" ? 1600 : confirmedTier === "rise" ? 2800 : 6000;
+          const maxTokens = confirmedTier === "spark" ? 1200 : confirmedTier === "rise" ? 2000 : 3000;
           const prompt    = getPrompt(confirmedTier, lvl, restoredPoints, answerSummary);
 
           streamBookContent(
@@ -481,7 +481,7 @@ export default function InnerGenApp() {
     const answerSummary = answers.length > 0
       ? answers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
       : "Assessment completed";
-    const maxTokens = tier === "spark" ? 1600 : tier === "rise" ? 2800 : 6000;
+    const maxTokens = tier === "spark" ? 1200 : tier === "rise" ? 2000 : 3000;
     const prompt    = getPrompt(tier, lvl, points, answerSummary);
 
     await streamBookContent(
