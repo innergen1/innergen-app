@@ -455,7 +455,7 @@ export default function InnerGenApp() {
       setPoints(total);
       // ✅ Go directly to dashboard → books tab (no report fetch)
       setScreen("dashboard");
-      setActiveTab("books");
+      setActiveTab("result");
     }
   }
 
