@@ -175,6 +175,50 @@ function getLevel(pts) {
   return LEVELS.find(l => pts >= l.min && pts <= l.max) || LEVELS[0];
 }
 
+// ─── STREAMING HELPER ─────────────────────────────────────────────────────────
+async function streamBookContent(prompt, maxTokens, onChunk, onDone, onError) {
+  try {
+    const res = await fetch("/api/generate-book", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, maxTokens }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Server error: ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n").filter(l => l.trim());
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+          if (data === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) {
+              fullText += parsed.text;
+              onChunk(fullText);
+            }
+          } catch {}
+        }
+      }
+    }
+    onDone(fullText);
+  } catch (err) {
+    onError(err);
+  }
+}
+
 // ─── STAR FIELD ───────────────────────────────────────────────────────────────
 function StarField() {
   const stars = Array.from({ length: 65 }, (_, i) => ({
@@ -376,6 +420,7 @@ export default function InnerGenApp() {
           setBookLoading(true);
           setBookTier(confirmedTier);
           setScreen("book");
+          setBookContent("");
 
           const lvl = getLevel(restoredPoints);
           const answerSummary = restoredAnswers.length > 0
@@ -384,20 +429,17 @@ export default function InnerGenApp() {
           const maxTokens = confirmedTier === "spark" ? 1600 : confirmedTier === "rise" ? 2800 : 6000;
           const prompt = getPrompt(confirmedTier, lvl, restoredPoints, answerSummary);
 
-          fetch("/api/generate-book", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt, maxTokens }),
-          })
-          .then(r => r.json())
-          .then(d => {
-            setBookContent(d.text || "Your guide is ready. Please refresh if content is missing.");
-            setBookLoading(false);
-          })
-          .catch(() => {
-            setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
-            setBookLoading(false);
-          });
+          // ✅ FIX 1: Stream after payment verification
+          streamBookContent(
+            prompt,
+            maxTokens,
+            (text) => setBookContent(text),          // live update as tokens arrive
+            (_finalText) => setBookLoading(false),   // done
+            () => {
+              setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
+              setBookLoading(false);
+            }
+          );
         } else {
           setScreen("splash");
           alert("We couldn't verify your payment. Please contact support at support@innergen.app if you were charged.");
@@ -442,31 +484,30 @@ export default function InnerGenApp() {
   // ── FETCH REPORT ──────────────────────────────────────────────────────────
   async function fetchReport(ans, total) {
     setReporting(true);
+    setReport("");
     const summary = ans.map(a => `${a.phase}: ${a.pts}/4`).join(", ");
     const lvl = getLevel(total);
-    try {
-      const res = await fetch("/api/generate-book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: `You are a human potential specialist grounded in neuroscience, psychology, and behavioral science. Someone just completed a self-awareness assessment. Their results: ${summary}. Overall profile: "${lvl.title}". Total score: ${total}/32.
+
+    // ✅ FIX 2: Stream the dashboard report
+    await streamBookContent(
+      `You are a human potential specialist grounded in neuroscience, psychology, and behavioral science. Someone just completed a self-awareness assessment. Their results: ${summary}. Overall profile: "${lvl.title}". Total score: ${total}/32.
 
 Write a warm, intelligent 3-paragraph personal result. Ground every insight in named researchers or real studies. Paragraph 1: what their specific pattern reveals about their current mindset state — name the science. Paragraph 2: their clearest growth edge based on their lowest-scoring areas — be precise, not general. Paragraph 3: one exact, research-backed action that will create the most leverage for them specifically. End with one sentence from a scientist or philosopher. No bullet points. Pure flowing prose. Second person. No preamble. No mention of AI or technology. Write as if a deeply knowledgeable human wrote this specifically for them.`,
-          maxTokens: 1000,
-        })
-      });
-      const d = await res.json();
-      setReport(d.text || "Your results reveal a meaningful pattern. The awareness you brought to these questions is itself the first step of transformation.");
-    } catch {
-      setReport("Your results reveal a meaningful and specific pattern. Every answer you gave honestly has already begun to shift something. The awareness you brought to these questions is itself the first step of transformation.");
-    }
-    setReporting(false);
+      1000,
+      (text) => setReport(text),
+      (_finalText) => setReporting(false),
+      () => {
+        setReport("Your results reveal a meaningful and specific pattern. Every answer you gave honestly has already begun to shift something. The awareness you brought to these questions is itself the first step of transformation.");
+        setReporting(false);
+      }
+    );
   }
 
   // ── GENERATE MAGIC BOOK ───────────────────────────────────────────────────
   async function generateBook(tier) {
     setBookLoading(true);
     setBookTier(tier);
+    setBookContent("");
     setScreen("book");
 
     const lvl = getLevel(points);
@@ -476,18 +517,17 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
     const maxTokens = tier === "spark" ? 1600 : tier === "rise" ? 2800 : 6000;
     const prompt = getPrompt(tier, lvl, points, answerSummary);
 
-    try {
-      const res = await fetch("/api/generate-book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, maxTokens }),
-      });
-      const d = await res.json();
-      setBookContent(d.text || "Your guide is ready.");
-    } catch {
-      setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
-    }
-    setBookLoading(false);
+    // ✅ FIX 3: Stream when reopening a purchased book
+    await streamBookContent(
+      prompt,
+      maxTokens,
+      (text) => setBookContent(text),
+      (_finalText) => setBookLoading(false),
+      () => {
+        setBookContent("Your personal guide is ready. Please ensure a stable connection and try again.");
+        setBookLoading(false);
+      }
+    );
   }
 
   // ── PAYWALL ───────────────────────────────────────────────────────────────
@@ -916,28 +956,55 @@ Write a warm, intelligent 3-paragraph personal result. Ground every insight in n
             <h1 style={{ fontFamily: FONT_H, fontSize: 26, fontWeight: 700, color: T.gold, marginBottom: 8 }}>{level.title}</h1>
             <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}>Score {points}/32 · Personalized for you</p>
           </div>
-          {bookLoading ? (
+          {bookLoading && !bookContent ? (
             <div style={{ ...card, padding: "44px 22px", textAlign: "center" }}>
               <div style={{ width: 32, height: 32, border: `3px solid ${T.border}`, borderTopColor: T.gold, borderRadius: "50%", animation: "spin 0.9s linear infinite", margin: "0 auto 18px" }} />
               <p style={{ fontFamily: FONT_B, fontSize: 15, color: T.muted, lineHeight: 1.8 }}>
                 Preparing your personal guide...<br />
-                <span style={{ fontSize: 13, color: T.dim }}>This takes about 30 seconds</span>
+                <span style={{ fontSize: 13, color: T.dim }}>Your guide is streaming in now ✨</span>
               </p>
             </div>
           ) : (
             <>
               <div style={{ ...card, padding: "28px 22px", marginBottom: 20 }}>
+                {bookLoading && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: T.gold, animation: "beat 1s infinite" }} />
+                    <span style={{ fontFamily: FONT_B, fontSize: 12, color: T.goldDim }}>Writing your guide...</span>
+                  </div>
+                )}
                 <p style={{ fontFamily: FONT_B, fontSize: 15, color: "rgba(237,232,212,0.88)", lineHeight: 2.1, whiteSpace: "pre-wrap", fontWeight: 400 }}>{bookContent}</p>
               </div>
-              <button style={goldBtn} onClick={downloadBook}>⬇ DOWNLOAD MY PERSONAL GUIDE</button>
-              <div style={{ height: 10 }} />
-              <button style={outlineBtn} onClick={() => { setScreen("dashboard"); setActiveTab("books"); }}>← Back to Magic Books</button>
-              <div style={{ height: 10 }} />
-              <div style={{ ...card, padding: "16px 20px", textAlign: "center" }}>
-                <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, lineHeight: 1.7 }}>
-                  This guide was built entirely from your answers.<br />Retake the assessment anytime to receive a new one.
-                </p>
-              </div>
+              {!bookLoading && (
+                <>
+                  {/* ── SAVE REMINDER ── */}
+                  <div style={{
+                    background: "rgba(242,201,76,0.07)",
+                    border: `1.5px solid rgba(242,201,76,0.35)`,
+                    borderRadius: 16, padding: "20px 22px", marginBottom: 16,
+                    display: "flex", gap: 14, alignItems: "flex-start",
+                  }}>
+                    <div style={{ fontSize: 28, flexShrink: 0 }}>💛</div>
+                    <div>
+                      <p style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: T.gold, marginBottom: 6 }}>
+                        Your guide is ready — save it now!
+                      </p>
+                      <p style={{ fontFamily: FONT_B, fontSize: 13, color: "rgba(237,232,212,0.78)", lineHeight: 1.8 }}>
+                        Tap the download button below to save your personal guide to your device. It will land in your Downloads folder — easy to find, read anytime, and print whenever you're ready. Keep it somewhere safe. This guide was built just for you. ✨
+                      </p>
+                    </div>
+                  </div>
+                  <button style={goldBtn} onClick={downloadBook}>⬇ DOWNLOAD MY PERSONAL GUIDE</button>
+                  <div style={{ height: 10 }} />
+                  <button style={outlineBtn} onClick={() => { setScreen("dashboard"); setActiveTab("books"); }}>← Back to Magic Books</button>
+                  <div style={{ height: 10 }} />
+                  <div style={{ ...card, padding: "16px 20px", textAlign: "center" }}>
+                    <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, lineHeight: 1.7 }}>
+                      This guide was built entirely from your answers.<br />Retake the assessment anytime to receive a new one.
+                    </p>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
