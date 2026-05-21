@@ -9,6 +9,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing prompt" });
   }
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: "API key not configured" });
+  }
+
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -27,6 +31,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (data.error) {
+      console.error("Anthropic error:", data.error);
       return res.status(500).json({ error: data.error.message });
     }
 
@@ -34,6 +39,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ text });
 
   } catch (err) {
+    console.error("generate-book error:", err.message);
     return res.status(500).json({ error: err.message });
   }
 }
