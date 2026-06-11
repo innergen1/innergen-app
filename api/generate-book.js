@@ -26,11 +26,17 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: maxTokens || 1200,
         messages: [{ role: "user", content: prompt }],
       }),
     });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Anthropic HTTP error:", response.status, errText);
+      return res.status(500).json({ error: `Anthropic error ${response.status}: ${errText}` });
+    }
 
     const data = await response.json();
 
