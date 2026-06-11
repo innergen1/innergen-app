@@ -432,7 +432,6 @@ export default function InnerGenApp() {
     } else {
       const total = newAnswers.reduce((s, a) => s + a.pts, 0);
       setPoints(total);
-      // ✅ Go directly to dashboard → books tab (no report fetch)
       setScreen("dashboard");
       setActiveTab("books");
     }
@@ -675,7 +674,6 @@ export default function InnerGenApp() {
         </div>
         <div style={inner}>
 
-          {/* ── MY RESULT ── */}
           {activeTab === "result" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ ...card, padding: "28px 22px", marginBottom: 16, textAlign: "center" }}>
@@ -692,8 +690,6 @@ export default function InnerGenApp() {
                   ))}
                 </div>
               </div>
-
-              {/* ── CALL TO ACTION → MAGIC BOOKS ── */}
               <div style={{ ...card, padding: "26px 22px", marginBottom: 16, border: `1px solid rgba(242,201,76,0.3)`, background: "rgba(242,201,76,0.03)" }}>
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Your Next Step</div>
                 <h3 style={{ fontFamily: FONT, fontSize: 22, color: T.text, fontWeight: 700, marginBottom: 12 }}>Your Personal Magic Book is waiting</h3>
@@ -702,8 +698,6 @@ export default function InnerGenApp() {
                 </p>
                 <button style={goldBtn} onClick={() => setActiveTab("books")}>EXPLORE MY MAGIC BOOKS →</button>
               </div>
-
-              {/* ── SHARE ── */}
               <div style={{ ...card, padding: "20px 22px", marginBottom: 16 }}>
                 <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Share Your Result</div>
                 <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.75, marginBottom: 16 }}>
@@ -728,14 +722,12 @@ export default function InnerGenApp() {
                 </div>
                 {shareMsg && <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.green, textAlign: "center", marginTop: 10 }}>{shareMsg}</p>}
               </div>
-
               <button style={dimBtn} onClick={() => { setScreen("quiz"); setQIdx(0); setSelected(null); setInsight(null); setPoints(0); setAnswers([]); setAnimKey(0); }}>
                 ↩ Retake Assessment
               </button>
             </div>
           )}
 
-          {/* ── MAGIC BOOKS ── */}
           {activeTab === "books" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ marginBottom: 22 }}>
@@ -783,7 +775,6 @@ export default function InnerGenApp() {
             </div>
           )}
 
-          {/* ── PROGRESS ── */}
           {activeTab === "progress" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 6 }}>Your Progress</h2>
@@ -824,7 +815,6 @@ export default function InnerGenApp() {
           )}
         </div>
 
-        {/* ── PAYWALL MODAL ── */}
         {paywall && paywallTier && (() => {
           const tier = TIERS.find(t => t.id === paywallTier);
           return (
@@ -910,7 +900,6 @@ export default function InnerGenApp() {
 
               {!bookLoading && (
                 <>
-                  {/* ── SAVE REMINDER ── */}
                   <div style={{
                     background: "rgba(242,201,76,0.07)",
                     border: `1.5px solid rgba(242,201,76,0.35)`,
