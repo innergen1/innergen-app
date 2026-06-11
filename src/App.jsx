@@ -471,8 +471,7 @@ export default function InnerGenApp() {
   }
 
   // ── PAYWALL ───────────────────────────────────────────────────────────────
-  function openPaywall(tierId) { setPaywallTier(tierId); setPaywall(true); }
-
+function openPaywall(tierId) { generateBook(tierId); }
   function handleStripeRedirect(tierId) {
     localStorage.setItem("ig_answers", JSON.stringify(answers));
     localStorage.setItem("ig_points",  String(points));
