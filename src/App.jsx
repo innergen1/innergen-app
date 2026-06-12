@@ -123,50 +123,6 @@ const LEVELS = [
   { min: 27, max: 32, title: "The Awakened",          emoji: "⚡", color: "#5FFFA0", desc: "You are operating from your highest design. The science is clear: you have built the thinking architecture that produces what others call extraordinary. This is your natural state." },
 ];
 
-// ─── TIERS ────────────────────────────────────────────────────────────────────
-const TIERS = [
-  {
-    id: "spark", label: "Spark", emoji: "🌱", color: "#79CCFF",
-    tagline: "Your potential, clearly mapped",
-    description: "A focused personal guide built entirely from your answers. Includes your Potential Blueprint, your #1 Core Strength with a science-backed activation strategy, your 7-Day Action Plan, your North Star Question, and one book matched specifically to where you are right now.",
-    features: [
-      "Your Potential Blueprint — what your results reveal about your current mindset",
-      "Your #1 Core Strength — named, science-backed, and ready to activate",
-      "Your 7-Day Action Plan — one precise practice per day based on your answers",
-      "Your North Star Question — to return to every morning",
-      "Your matched reading — one book chosen specifically for your profile",
-    ],
-  },
-  {
-    id: "rise", label: "Rise", emoji: "🔥", color: "#F2C94C",
-    tagline: "Your complete transformation guide",
-    description: "Everything in Spark, plus a deeper analysis of all three of your core strengths, a 30-day activation plan, your Shadow Pattern — the one belief most likely holding you back, precisely named and dissolved — and four resources matched to your specific profile.",
-    features: [
-      "Everything in Spark",
-      "All 3 Core Strengths — fully analyzed with activation strategies",
-      "Your Shadow Pattern — named precisely and dissolved with science",
-      "Your 30-Day Activation Plan — week by week, based on your answers",
-      "4 matched resources — books and tools chosen for your exact profile",
-      "Monthly milestone markers — what to look for as you shift",
-    ],
-  },
-  {
-    id: "sovereign", label: "Sovereign", emoji: "⚡", color: "#5FFFA0",
-    tagline: "Your complete life architecture",
-    description: "The most comprehensive personal guide in InnerGen. Built entirely from your answers. Covers every dimension of your life — your genius profile, your wealth mindset, your relationships, your identity, and a full 90-day roadmap with complete resources.",
-    features: [
-      "Everything in Rise",
-      "Your Genius Profile — based on Gardner's Multiple Intelligences research",
-      "Your Wealth Mindset Chapter — how your thinking pattern affects financial outcomes",
-      "Your Relationship Blueprint — your relational strengths and growth edges",
-      "Your Identity Architecture — who you are becoming, mapped precisely",
-      "Your 90-Day Compounding Roadmap — three months of weekly guidance",
-      "Complete resource library — matched specifically to your profile",
-      "Monthly re-assessment prompts — to track your evolution over time",
-    ],
-  },
-];
-
 function getLevel(pts) {
   return LEVELS.find(l => pts >= l.min && pts <= l.max) || LEVELS[0];
 }
@@ -225,67 +181,9 @@ const CSS = `
   @keyframes slideDown{ from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);} }
 `;
 
-// ─── PROMPTS ──────────────────────────────────────────────────────────────────
-function getPrompt(tier, lvl, points, answerSummary) {
-  const prompts = {
-    spark: `You are a human potential guide. Create a personal Spark Guide for someone at the "${lvl.title}" level (score ${points}/32). Their assessment scores: ${answerSummary}.
-
-Your job is simple: help this person take clear, practical steps toward a richer, more meaningful life. Be warm, direct, and specific to their answers. No fluff. No jargon. Write in second person. Do not mention AI or technology.
-
-Use these section headings exactly:
-
-YOUR POTENTIAL BLUEPRINT
-Two paragraphs. What their answers reveal about where they are right now — honest, warm, specific. What's working. What's ready to shift.
-
-YOUR CORE STRENGTH
-The one strength their answers show most clearly. Name it simply. Explain in plain language why it matters for their life. Give one specific thing to do this week to use it.
-
-YOUR 7-DAY STARTER PLAN
-Seven daily practices. Each one named, one sentence of why it works, one exact instruction.
-
-Day 1: [name] — [why it works] — [exact instruction]
-Day 2: [name] — [why it works] — [exact instruction]
-Day 3: [name] — [why it works] — [exact instruction]
-Day 4: [name] — [why it works] — [exact instruction]
-Day 5: [name] — [why it works] — [exact instruction]
-Day 6: [name] — [why it works] — [exact instruction]
-Day 7: [name] — [why it works] — [exact instruction]
-
-YOUR DAILY QUESTION
-One question to ask yourself every morning. Explain in two sentences why this question matters for them.
-
-YOUR NEXT BOOK
-One real book. Title and author. Two sentences on exactly why it fits where they are right now.`,
-
-    rise: `You are a human potential guide. Create a Rise Guide for someone at the "${lvl.title}" level (score ${points}/32). Their assessment: ${answerSummary}.
-
-Warm, direct, specific. No fluff. Second person. No mention of AI.
-
-Use these section headings exactly:
-
-YOUR POTENTIAL BLUEPRINT
-Three paragraphs. Where they are now. What's strong. What's ready to transform.
-
-YOUR THREE CORE STRENGTHS
-Three strengths. For each: name it, explain why it matters, give one specific practice.
-
-YOUR SHADOW PATTERN
-The one limiting pattern. Name it plainly. Why it forms. One daily practice to dissolve it.
-
-YOUR 30-DAY PLAN
-Four weeks with theme and daily practices.
-Week 1 — [Theme]: [practices]
-Week 2 — [Theme]: [practices]
-Week 3 — [Theme]: [practices]
-Week 4 — [Theme]: [practices]
-
-WHAT CHANGES AT 30 DAYS
-Four specific observable things they will notice.
-
-YOUR FOUR RESOURCES
-Four real books with title, author, and why it fits their profile.`,
-
-    sovereign: `You are a human potential guide. Create a complete Sovereign Life Architecture for someone at the "${lvl.title}" level (score ${points}/32). Their assessment: ${answerSummary}.
+// ─── PROMPT ───────────────────────────────────────────────────────────────────
+function getPrompt(lvl, points, answerSummary) {
+  return `You are a human potential guide. Create a complete Personal Magic Book — a full Life Architecture — for someone at the "${lvl.title}" level (score ${points}/32). Their assessment: ${answerSummary}.
 
 Practical, specific, immediately useful. Warm, intelligent, direct. Second person. No mention of AI.
 
@@ -325,9 +223,7 @@ YOUR RESOURCES
 Five books, one podcast, one documentary. One sentence each on why it fits.
 
 YOUR MONTHLY CHECK-IN QUESTIONS
-Four questions to measure real growth.`,
-  };
-  return prompts[tier] || prompts.spark;
+Four questions to measure real growth.`;
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -341,7 +237,6 @@ export default function InnerGenApp() {
   const [activeTab,   setActiveTab]   = useState("result");
   const [bookLoading, setBookLoading] = useState(false);
   const [bookContent, setBookContent] = useState("");
-  const [bookTier,    setBookTier]    = useState(null);
   const [animKey,     setAnimKey]     = useState(0);
   const [shareMsg,    setShareMsg]    = useState("");
   const [prevScreen,  setPrevScreen]  = useState("splash");
@@ -370,7 +265,7 @@ export default function InnerGenApp() {
       const total = newAnswers.reduce((s, a) => s + a.pts, 0);
       setPoints(total);
       setScreen("dashboard");
-      setActiveTab("books");
+      setActiveTab("book");
     }
   }
 
@@ -386,9 +281,8 @@ export default function InnerGenApp() {
   }
 
   // ── GENERATE MAGIC BOOK ───────────────────────────────────────────────────
-  async function generateBook(tier) {
+  async function generateBook() {
     setBookLoading(true);
-    setBookTier(tier);
     setBookContent("");
     setScreen("book");
 
@@ -396,11 +290,10 @@ export default function InnerGenApp() {
     const answerSummary = answers.length > 0
       ? answers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
       : "Assessment completed";
-    const maxTokens = tier === "spark" ? 1200 : tier === "rise" ? 2000 : 3000;
-    const prompt    = getPrompt(tier, lvl, points, answerSummary);
+    const prompt = getPrompt(lvl, points, answerSummary);
 
     await streamBookContent(
-      prompt, maxTokens,
+      prompt, 3000,
       (text) => setBookContent(text),
       ()     => setBookLoading(false),
       ()     => { setBookContent("Your personal guide is ready. Please ensure a stable connection and try again."); setBookLoading(false); }
@@ -408,16 +301,15 @@ export default function InnerGenApp() {
   }
 
   function downloadBook() {
-    const t    = TIERS.find(t => t.id === bookTier);
     const blob = new Blob([
-      `INNERGEN \u2014 YOUR PERSONAL GUIDE\n`,
-      `${t?.label} Edition \u00B7 ${level.title} \u00B7 Score ${points}/32\n`,
+      `INNERGEN \u2014 YOUR PERSONAL MAGIC BOOK\n`,
+      `${level.title} \u00B7 Score ${points}/32\n`,
       `${"─".repeat(50)}\n\n`,
       bookContent,
     ], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a   = document.createElement("a");
-    a.href = url; a.download = `InnerGen-${t?.label}-Guide.txt`; a.click();
+    a.href = url; a.download = `InnerGen-Magic-Book.txt`; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -561,7 +453,7 @@ export default function InnerGenApp() {
   if (screen === "dashboard") {
     const tabs = [
       { id: "result",   label: "My Result" },
-      { id: "books",    label: "Magic Books" },
+      { id: "book",     label: "Magic Book" },
       { id: "progress", label: "Progress" },
     ];
     return (
@@ -608,9 +500,9 @@ export default function InnerGenApp() {
                 <div style={{ fontFamily: FONT, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Your Next Step</div>
                 <h3 style={{ fontFamily: FONT, fontSize: 22, color: T.text, fontWeight: 700, marginBottom: 12 }}>Your Personal Magic Book is waiting</h3>
                 <p style={{ fontFamily: FONT_B, fontSize: 14, color: T.muted, lineHeight: 1.85, marginBottom: 20 }}>
-                  Based on your score of <strong style={{ color: T.gold }}>{points}/32</strong> as <strong style={{ color: level.color }}>{level.title}</strong>, your guide is ready to be built — personalized entirely from your answers. No two are ever the same.
+                  Based on your score of <strong style={{ color: T.gold }}>{points}/32</strong> as <strong style={{ color: level.color }}>{level.title}</strong>, your guide is ready to be built — personalized entirely from your answers, completely free.
                 </p>
-                <button style={goldBtn} onClick={() => setActiveTab("books")}>EXPLORE MY MAGIC BOOKS →</button>
+                <button style={goldBtn} onClick={() => setActiveTab("book")}>SEE MY MAGIC BOOK →</button>
               </div>
               <div style={{ ...card, padding: "20px 22px", marginBottom: 16 }}>
                 <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 3, color: T.goldDim, marginBottom: 10, textTransform: "uppercase" }}>✦ Share Your Result</div>
@@ -642,39 +534,50 @@ export default function InnerGenApp() {
             </div>
           )}
 
-          {activeTab === "books" && (
+          {activeTab === "book" && (
             <div style={{ animation: "fadeUp 0.4s ease" }}>
               <div style={{ marginBottom: 22 }}>
-                <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 8 }}>Your Magic Books</h2>
+                <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 8 }}>Your Magic Book</h2>
                 <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.75 }}>
-                  Each guide is built entirely from your answers, free of charge. Personalized for you. No two are ever the same.
+                  A complete personal life architecture, built entirely from your answers — free, personalized, and yours forever.
                 </p>
               </div>
-              {TIERS.map(tier => (
-                <div key={tier.id} style={{ ...card, padding: "24px 22px", marginBottom: 16, border: `1px solid ${tier.color}20` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                    <div>
-                      <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 3, color: tier.color, textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>
-                        {tier.emoji} {tier.label}
-                      </div>
-                      <h3 style={{ fontFamily: FONT, fontSize: 18, color: T.text, fontWeight: 700 }}>{tier.tagline}</h3>
+              <div style={{ ...card, padding: "24px 22px", marginBottom: 16, border: `1px solid ${level.color}20` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 3, color: level.color, textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>
+                      ⚡ Your Complete Life Architecture
                     </div>
-                    <div style={{ fontFamily: FONT, fontSize: 18, fontWeight: 700, color: tier.color, flexShrink: 0, marginLeft: 12, textTransform: "uppercase", letterSpacing: 1 }}>Free</div>
+                    <h3 style={{ fontFamily: FONT, fontSize: 18, color: T.text, fontWeight: 700 }}>Your Magic Book</h3>
                   </div>
-                  <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 16 }}>{tier.description}</p>
-                  {tier.features.map((f, i) => (
-                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
-                      <span style={{ color: tier.color, fontSize: 12, flexShrink: 0, marginTop: 2 }}>✓</span>
-                      <span style={{ fontFamily: FONT_B, fontSize: 12.5, color: T.muted, lineHeight: 1.55 }}>{f}</span>
-                    </div>
-                  ))}
-                  <div style={{ marginTop: 18 }}>
-                    <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${tier.color}, ${tier.color}bb)` }} onClick={() => generateBook(tier.id)}>
-                      GENERATE MY {tier.label.toUpperCase()} GUIDE →
-                    </button>
-                  </div>
+                  <div style={{ fontFamily: FONT, fontSize: 18, fontWeight: 700, color: level.color, flexShrink: 0, marginLeft: 12, textTransform: "uppercase", letterSpacing: 1 }}>Free</div>
                 </div>
-              ))}
+                <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 16 }}>
+                  The most comprehensive guide InnerGen offers. Built entirely from your answers — covers every dimension of your life: your genius profile, your wealth mindset, your relationships, your identity, and a full 90-day roadmap with complete resources.
+                </p>
+                {[
+                  "Your Potential Blueprint — full picture of where you are and what's ready to break open",
+                  "Your Genius Profile — based on Gardner's Multiple Intelligences research",
+                  "Your Three Core Strengths — named, with practices to develop each",
+                  "Your Shadow Pattern — named precisely and dissolved with science",
+                  "Your Identity Shift — who you're becoming, mapped precisely",
+                  "Your Wealth Mindset Chapter — how your thinking pattern affects financial outcomes",
+                  "Your Relationship Edge — your relational strengths and growth edges",
+                  "Your 90-Day Roadmap — three months of weekly guidance",
+                  "Your Daily Practices & Resources — books, podcast, documentary matched to you",
+                  "Your Monthly Check-In Questions — to track your evolution over time",
+                ].map((f, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8 }}>
+                    <span style={{ color: level.color, fontSize: 12, flexShrink: 0, marginTop: 2 }}>✓</span>
+                    <span style={{ fontFamily: FONT_B, fontSize: 12.5, color: T.muted, lineHeight: 1.55 }}>{f}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 18 }}>
+                  <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${level.color}, ${level.color}bb)` }} onClick={generateBook}>
+                    GENERATE MY MAGIC BOOK →
+                  </button>
+                </div>
+              </div>
               <div style={{ ...card, padding: "18px 20px", textAlign: "center", marginTop: 8 }}>
                 <p style={{ fontFamily: FONT_B, fontSize: 12, fontStyle: "italic", color: T.dim, lineHeight: 1.7 }}>
                   Always free · Instant access · Yours forever · No subscription
@@ -726,9 +629,8 @@ export default function InnerGenApp() {
     );
   }
 
-  // ── MAGIC BOOK ────────────────────────────────────────────────────────────
+  // ── MAGIC BOOK (GENERATED) ────────────────────────────────────────────────
   if (screen === "book") {
-    const tier = TIERS.find(t => t.id === bookTier);
     return (
       <div style={wrap}>
         <style>{CSS}</style>
@@ -742,7 +644,7 @@ export default function InnerGenApp() {
               {bookLoading ? "⚙️" : "📖"}
             </div>
             <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 4, color: T.goldDim, marginBottom: 8, textTransform: "uppercase", fontWeight: 700 }}>
-              {tier?.emoji} {tier?.label} · Your Personal Guide
+              ⚡ Your Magic Book
             </div>
             <h1 style={{ fontFamily: FONT_H, fontSize: 26, fontWeight: 700, color: T.gold, marginBottom: 8 }}>{level.title}</h1>
             <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}>Score {points}/32 · Personalized for you</p>
@@ -809,7 +711,7 @@ export default function InnerGenApp() {
                     </a>
                   </div>
 
-                  <button style={outlineBtn} onClick={() => { setScreen("dashboard"); setActiveTab("books"); }}>← Back to Magic Books</button>
+                  <button style={outlineBtn} onClick={() => { setScreen("dashboard"); setActiveTab("book"); }}>← Back to Dashboard</button>
                   <div style={{ height: 10 }} />
                   <div style={{ ...card, padding: "16px 20px", textAlign: "center" }}>
                     <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, lineHeight: 1.7 }}>
@@ -840,10 +742,10 @@ export default function InnerGenApp() {
           <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, marginTop: 6 }}>Last updated: June 2026</p>
         </div>
         {[
-          { title: "1. What InnerGen Is", body: "InnerGen is short for Inner Genius.\n\nEvery one of us has Genius living inside — often untapped. As Wayne Dyer once said, \"Some people die with the music still in them.\" InnerGen exists so that doesn't happen to you.\n\nDon't die with the music still in you. Let's write your music. Let's sing the tune exactly how you were meant to sing it. In other words — let's live the way we were meant to live. Healthy, wealthy, and happy.\n\nInnerGen was created by someone who has studied human development and results since 2020, and who is currently an active consultant and high performance coach. This app is the distillation of that work — made personal, made practical, made for you.\n\nInnerGen is a self-awareness assessment tool designed for personal development purposes. The quiz and personal guides are intended to support reflection, growth, and meaningful action in your life.\n\nInnerGen is not a medical service, psychological treatment, financial advisory service, or substitute for professional advice of any kind. If you are experiencing a mental health crisis or require professional support, please consult a qualified professional." },
-          { title: "2. AI-Generated Content", body: "The personal guides delivered through InnerGen are generated using artificial intelligence technology, based on your specific assessment responses. Each guide is unique to your answers at the time of assessment.\n\nWhile every guide is built from a framework grounded in established research in neuroscience, psychology, and behavioral science, the output is generated by AI and has not been reviewed by a licensed professional. Results are for personal development and informational purposes only." },
-          { title: "3. Free Access & Voluntary Support", body: "All InnerGen personal guides — Spark, Rise, and Sovereign — are provided completely free of charge. There is no purchase required and no payment information is collected to generate your guide.\n\nIf you find value in InnerGen, you may choose to leave a voluntary donation through our support page. Donations are entirely optional, are not tied to access of any guide, and do not unlock any additional features. Donations are processed securely through Buy Me a Coffee and Stripe. InnerGen does not store your payment information." },
-          { title: "4. No Guarantees of Specific Outcomes", body: "InnerGen provides tools, frameworks, and guidance for personal development. We believe deeply in human potential and the value of self-awareness.\n\nHowever, we cannot and do not guarantee specific life outcomes — financial, health-related, relational, or otherwise — as a result of using this application or its guides. Your results depend entirely on your own choices, effort, and circumstances." },
+          { title: "1. What InnerGen Is", body: "InnerGen is short for Inner Genius.\n\nEvery one of us has Genius living inside — often untapped. As Wayne Dyer once said, \"Some people die with the music still in them.\" InnerGen exists so that doesn't happen to you.\n\nDon't die with the music still in you. Let's write your music. Let's sing the tune exactly how you were meant to sing it. In other words — let's live the way we were meant to live. Healthy, wealthy, and happy.\n\nInnerGen was created by someone who has studied human development and results since 2020, and who is currently an active consultant and high performance coach. This app is the distillation of that work — made personal, made practical, made for you.\n\nInnerGen is a self-awareness assessment tool designed for personal development purposes. The quiz and personal guide are intended to support reflection, growth, and meaningful action in your life.\n\nInnerGen is not a medical service, psychological treatment, financial advisory service, or substitute for professional advice of any kind. If you are experiencing a mental health crisis or require professional support, please consult a qualified professional." },
+          { title: "2. AI-Generated Content", body: "Your personal Magic Book is generated using artificial intelligence technology, based on your specific assessment responses. Each guide is unique to your answers at the time of assessment.\n\nWhile your guide is built from a framework grounded in established research in neuroscience, psychology, and behavioral science, the output is generated by AI and has not been reviewed by a licensed professional. Results are for personal development and informational purposes only." },
+          { title: "3. Free Access & Voluntary Support", body: "Your Magic Book is provided completely free of charge. There is no purchase required and no payment information is collected to generate your guide.\n\nIf you find value in InnerGen, you may choose to leave a voluntary donation through our support page. Donations are entirely optional, are not tied to access of your guide, and do not unlock any additional features. Donations are processed securely through Buy Me a Coffee and Stripe. InnerGen does not store your payment information." },
+          { title: "4. No Guarantees of Specific Outcomes", body: "InnerGen provides tools, frameworks, and guidance for personal development. We believe deeply in human potential and the value of self-awareness.\n\nHowever, we cannot and do not guarantee specific life outcomes — financial, health-related, relational, or otherwise — as a result of using this application or its guide. Your results depend entirely on your own choices, effort, and circumstances." },
           { title: "5. Intellectual Property", body: "The InnerGen quiz, framework, brand, and application are the intellectual property of InnerGen and its creator. All rights reserved.\n\nYour personal guide is provided for your individual personal use only. You may not reproduce, sell, or distribute the content of your guide commercially." },
           { title: "6. Privacy", body: "What we collect: Your assessment responses.\n\nHow we use it: To generate your personalized guide.\n\nWhat we don't do: We do not sell, share, or distribute your personal data to third parties for marketing purposes. We do not require or collect payment information to provide your guide.\n\nIf you choose to make a voluntary donation, that transaction is handled entirely by Buy Me a Coffee and Stripe. Please review their privacy policies for details on payment data handling." },
           { title: "7. Limitation of Liability", body: "To the fullest extent permitted by applicable law, InnerGen and its creator shall not be liable for any indirect, incidental, or consequential damages arising from your use of this application or its content." },
