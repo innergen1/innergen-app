@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 
-// ─── STRIPE PAYMENT LINKS ─────────────────────────────────────────────────────
-const PAYMENT_LINKS = {
-  spark:     "https://buy.stripe.com/aFabJ024Z5pP5yNckV48000",
-  rise:      "https://buy.stripe.com/5kQ14m10Vf0pf9nfx748001",
-  sovereign: "https://buy.stripe.com/aFabJ0aBv6tTf9n5Wx48002",
-};
+// ─── DONATION LINK ────────────────────────────────────────────────────────────
+const DONATION_LINK = "https://buymeacoffee.com/InnerGen";
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
 const T = {
@@ -130,7 +126,7 @@ const LEVELS = [
 // ─── TIERS ────────────────────────────────────────────────────────────────────
 const TIERS = [
   {
-    id: "spark", label: "Spark", price: "$11.95", emoji: "🌱", color: "#79CCFF",
+    id: "spark", label: "Spark", emoji: "🌱", color: "#79CCFF",
     tagline: "Your potential, clearly mapped",
     description: "A focused personal guide built entirely from your answers. Includes your Potential Blueprint, your #1 Core Strength with a science-backed activation strategy, your 7-Day Action Plan, your North Star Question, and one book matched specifically to where you are right now.",
     features: [
@@ -142,7 +138,7 @@ const TIERS = [
     ],
   },
   {
-    id: "rise", label: "Rise", price: "$33.95", emoji: "🔥", color: "#F2C94C",
+    id: "rise", label: "Rise", emoji: "🔥", color: "#F2C94C",
     tagline: "Your complete transformation guide",
     description: "Everything in Spark, plus a deeper analysis of all three of your core strengths, a 30-day activation plan, your Shadow Pattern — the one belief most likely holding you back, precisely named and dissolved — and four resources matched to your specific profile.",
     features: [
@@ -155,7 +151,7 @@ const TIERS = [
     ],
   },
   {
-    id: "sovereign", label: "Sovereign", price: "$55.95", emoji: "⚡", color: "#5FFFA0",
+    id: "sovereign", label: "Sovereign", emoji: "⚡", color: "#5FFFA0",
     tagline: "Your complete life architecture",
     description: "The most comprehensive personal guide in InnerGen. Built entirely from your answers. Covers every dimension of your life — your genius profile, your wealth mindset, your relationships, your identity, and a full 90-day roadmap with complete resources.",
     features: [
@@ -343,9 +339,6 @@ export default function InnerGenApp() {
   const [answers,     setAnswers]     = useState([]);
   const [insight,     setInsight]     = useState(null);
   const [activeTab,   setActiveTab]   = useState("result");
-  const [paywall,     setPaywall]     = useState(false);
-  const [paywallTier, setPaywallTier] = useState(null);
-  const [purchased,   setPurchased]   = useState({});
   const [bookLoading, setBookLoading] = useState(false);
   const [bookContent, setBookContent] = useState("");
   const [bookTier,    setBookTier]    = useState(null);
@@ -357,62 +350,6 @@ export default function InnerGenApp() {
 
   const currentQ = QUIZ[qIdx];
   const level    = getLevel(points);
-
-  // ── PAYMENT VERIFICATION ──────────────────────────────────────────────────
-  useEffect(() => {
-    const params    = new URLSearchParams(window.location.search);
-    const sessionId = params.get("session_id");
-    const tier      = params.get("tier");
-    if (!sessionId || !tier) return;
-
-    window.history.replaceState({}, "", "/");
-
-    const savedAnswers = localStorage.getItem("ig_answers");
-    const savedPoints  = localStorage.getItem("ig_points");
-    const savedTier    = localStorage.getItem("ig_tier") || tier;
-    localStorage.removeItem("ig_answers");
-    localStorage.removeItem("ig_points");
-    localStorage.removeItem("ig_tier");
-
-    const restoredAnswers = savedAnswers ? JSON.parse(savedAnswers) : [];
-    const restoredPoints  = savedPoints  ? parseInt(savedPoints, 10) : 20;
-
-    setAnswers(restoredAnswers);
-    setPoints(restoredPoints);
-    setScreen("verifying");
-    setBookTier(savedTier);
-
-    fetch(`/api/verify-session?session_id=${sessionId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.verified) {
-          const confirmedTier = data.tier || savedTier;
-          setPurchased(p => ({ ...p, [confirmedTier]: true }));
-          setBookLoading(true);
-          setBookTier(confirmedTier);
-          setBookContent("");
-          setScreen("book");
-
-          const lvl = getLevel(restoredPoints);
-          const answerSummary = restoredAnswers.length > 0
-            ? restoredAnswers.map(a => `${a.phase}: ${a.pts}/4`).join(", ")
-            : "Assessment completed — generate a powerful personalized guide for a growth-oriented person";
-          const maxTokens = confirmedTier === "spark" ? 1200 : confirmedTier === "rise" ? 2000 : 3000;
-          const prompt    = getPrompt(confirmedTier, lvl, restoredPoints, answerSummary);
-
-          streamBookContent(
-            prompt, maxTokens,
-            (text) => setBookContent(text),
-            ()     => setBookLoading(false),
-            ()     => { setBookContent("Your personal guide is ready. Please ensure a stable connection and try again."); setBookLoading(false); }
-          );
-        } else {
-          setScreen("splash");
-          alert("We couldn't verify your payment. Please contact support at support@innergen.app if you were charged.");
-        }
-      })
-      .catch(() => setScreen("splash"));
-  }, []);
 
   // ── ANSWER HANDLER ────────────────────────────────────────────────────────
   function handleAnswer(opt) {
@@ -470,15 +407,6 @@ export default function InnerGenApp() {
     );
   }
 
-  // ── PAYWALL ───────────────────────────────────────────────────────────────
-function openPaywall(tierId) { generateBook(tierId); }
-  function handleStripeRedirect(tierId) {
-    localStorage.setItem("ig_answers", JSON.stringify(answers));
-    localStorage.setItem("ig_points",  String(points));
-    localStorage.setItem("ig_tier",    tierId);
-    window.location.href = PAYMENT_LINKS[tierId];
-  }
-
   function downloadBook() {
     const t    = TIERS.find(t => t.id === bookTier);
     const blob = new Blob([
@@ -530,19 +458,6 @@ function openPaywall(tierId) { generateBook(tierId); }
   };
   const wrap  = { minHeight: "100vh", background: T.bg, position: "relative", overflow: "hidden" };
   const inner = { maxWidth: 500, margin: "0 auto", padding: "20px 18px 70px", position: "relative", zIndex: 2 };
-
-  // ── VERIFYING ─────────────────────────────────────────────────────────────
-  if (screen === "verifying") return (
-    <div style={{ ...wrap, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <style>{CSS}</style>
-      <StarField />
-      <div style={{ textAlign: "center", position: "relative", zIndex: 2 }}>
-        <div style={{ width: 52, height: 52, border: `3px solid rgba(242,201,76,0.2)`, borderTopColor: T.gold, borderRadius: "50%", animation: "spin 0.9s linear infinite", margin: "0 auto 24px" }} />
-        <p style={{ fontFamily: FONT_H, fontSize: 22, color: T.gold, marginBottom: 10 }}>Verifying your payment...</p>
-        <p style={{ fontFamily: FONT_B, fontSize: 14, color: T.muted }}>Preparing your personal Magic Book ✨</p>
-      </div>
-    </div>
-  );
 
   // ── SPLASH ────────────────────────────────────────────────────────────────
   if (screen === "splash") return (
@@ -732,7 +647,7 @@ function openPaywall(tierId) { generateBook(tierId); }
               <div style={{ marginBottom: 22 }}>
                 <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 8 }}>Your Magic Books</h2>
                 <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.75 }}>
-                  Each guide is built entirely from your answers. Personalized for you. No two are ever the same.
+                  Each guide is built entirely from your answers, free of charge. Personalized for you. No two are ever the same.
                 </p>
               </div>
               {TIERS.map(tier => (
@@ -744,7 +659,7 @@ function openPaywall(tierId) { generateBook(tierId); }
                       </div>
                       <h3 style={{ fontFamily: FONT, fontSize: 18, color: T.text, fontWeight: 700 }}>{tier.tagline}</h3>
                     </div>
-                    <div style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: tier.color, flexShrink: 0, marginLeft: 12 }}>{tier.price}</div>
+                    <div style={{ fontFamily: FONT, fontSize: 18, fontWeight: 700, color: tier.color, flexShrink: 0, marginLeft: 12, textTransform: "uppercase", letterSpacing: 1 }}>Free</div>
                   </div>
                   <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 16 }}>{tier.description}</p>
                   {tier.features.map((f, i) => (
@@ -754,21 +669,15 @@ function openPaywall(tierId) { generateBook(tierId); }
                     </div>
                   ))}
                   <div style={{ marginTop: 18 }}>
-                    {purchased[tier.id] ? (
-                      <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${tier.color}, ${tier.color}99)` }} onClick={() => generateBook(tier.id)}>
-                        OPEN MY {tier.label.toUpperCase()} GUIDE →
-                      </button>
-                    ) : (
-                      <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${tier.color}, ${tier.color}bb)` }} onClick={() => openPaywall(tier.id)}>
-                        UNLOCK FOR {tier.price} →
-                      </button>
-                    )}
+                    <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${tier.color}, ${tier.color}bb)` }} onClick={() => generateBook(tier.id)}>
+                      GENERATE MY {tier.label.toUpperCase()} GUIDE →
+                    </button>
                   </div>
                 </div>
               ))}
               <div style={{ ...card, padding: "18px 20px", textAlign: "center", marginTop: 8 }}>
                 <p style={{ fontFamily: FONT_B, fontSize: 12, fontStyle: "italic", color: T.dim, lineHeight: 1.7 }}>
-                  One-time purchase · Instant access · Yours forever · No subscription
+                  Always free · Instant access · Yours forever · No subscription
                 </p>
               </div>
             </div>
@@ -813,44 +722,6 @@ function openPaywall(tierId) { generateBook(tierId); }
             </div>
           )}
         </div>
-
-        {paywall && paywallTier && (() => {
-          const tier = TIERS.find(t => t.id === paywallTier);
-          return (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(4,7,14,0.95)", backdropFilter: "blur(20px)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 16px 28px", animation: "fadeIn 0.3s ease" }}
-              onClick={e => { if (e.target === e.currentTarget) setPaywall(false); }}>
-              <div style={{ ...card, width: "100%", maxWidth: 480, padding: "32px 26px", border: `1px solid ${tier.color}35` }}>
-                <div style={{ textAlign: "center", marginBottom: 22 }}>
-                  <div style={{ fontSize: 40, marginBottom: 10 }}>{tier.emoji}</div>
-                  <h2 style={{ fontFamily: FONT, fontSize: 24, fontWeight: 700, color: T.text, marginBottom: 8 }}>{tier.label} — Your Personal Guide</h2>
-                  <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8 }}>Built entirely from your answers. Personalized for you. Instant access.</p>
-                </div>
-                {tier.features.map((f, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 9 }}>
-                    <span style={{ color: tier.color, fontSize: 13, flexShrink: 0, marginTop: 1 }}>✓</span>
-                    <span style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}>{f}</span>
-                  </div>
-                ))}
-                <div style={{ textAlign: "center", margin: "22px 0 8px" }}>
-                  <span style={{ fontFamily: FONT, fontSize: 40, fontWeight: 700, color: tier.color }}>{tier.price}</span>
-                  <span style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted }}> · one time · yours forever</span>
-                </div>
-                <p style={{ fontFamily: FONT_B, fontSize: 11, color: T.dim, textAlign: "center", marginBottom: 20 }}>No subscription. No upsells. Instant access.</p>
-                <button style={{ ...goldBtn, background: `linear-gradient(135deg, ${tier.color}, ${tier.color}cc)`, marginBottom: 10 }}
-                  onClick={() => handleStripeRedirect(paywallTier)}>
-                  UNLOCK MY {tier.label.toUpperCase()} GUIDE →
-                </button>
-                <button style={dimBtn} onClick={() => setPaywall(false)}>Maybe later</button>
-                <p style={{ fontFamily: FONT_B, fontSize: 11, color: T.dim, textAlign: "center", marginTop: 12 }}>
-                  By purchasing you agree to our{" "}
-                  <button onClick={() => { setPaywall(false); goToTerms("dashboard"); }} style={{ background: "none", border: "none", fontFamily: FONT_B, fontSize: 11, color: T.goldDim, cursor: "pointer", textDecoration: "underline", padding: 0 }}>
-                    Terms & Conditions
-                  </button>
-                </p>
-              </div>
-            </div>
-          );
-        })()}
       </div>
     );
   }
@@ -917,6 +788,27 @@ function openPaywall(tierId) { generateBook(tierId); }
                   </div>
                   <button style={goldBtn} onClick={downloadBook}>⬇ DOWNLOAD MY PERSONAL GUIDE</button>
                   <div style={{ height: 10 }} />
+
+                  <div style={{
+                    background: "rgba(242,201,76,0.05)",
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 16, padding: "20px 22px", marginBottom: 16, textAlign: "center",
+                  }}>
+                    <p style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: T.gold, marginBottom: 8 }}>
+                      Enjoyed your guide?
+                    </p>
+                    <p style={{ fontFamily: FONT_B, fontSize: 13, color: T.muted, lineHeight: 1.8, marginBottom: 14 }}>
+                      InnerGen is free for everyone. If this gave you something meaningful, a small coffee helps keep it that way. ☕
+                    </p>
+                    <a href={DONATION_LINK} target="_blank" rel="noopener noreferrer" style={{
+                      display: "inline-block", textDecoration: "none",
+                      background: `linear-gradient(135deg, ${T.gold}, #c49000)`, color: "#04070E",
+                      fontFamily: FONT, fontWeight: 700, fontSize: 13, padding: "12px 26px", borderRadius: 12,
+                    }}>
+                      SUPPORT INNERGEN ☕
+                    </a>
+                  </div>
+
                   <button style={outlineBtn} onClick={() => { setScreen("dashboard"); setActiveTab("books"); }}>← Back to Magic Books</button>
                   <div style={{ height: 10 }} />
                   <div style={{ ...card, padding: "16px 20px", textAlign: "center" }}>
@@ -945,15 +837,15 @@ function openPaywall(tierId) { generateBook(tierId); }
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ fontFamily: FONT_B, fontSize: 10, letterSpacing: 5, color: T.goldDim, marginBottom: 10, textTransform: "uppercase", fontWeight: 700 }}>InnerGen</div>
           <h1 style={{ fontFamily: FONT_H, fontSize: 24, fontWeight: 700, color: T.text }}>Terms & Conditions</h1>
-          <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, marginTop: 6 }}>Last updated: May 2026</p>
+          <p style={{ fontFamily: FONT_B, fontSize: 12, color: T.dim, marginTop: 6 }}>Last updated: June 2026</p>
         </div>
         {[
           { title: "1. What InnerGen Is", body: "InnerGen is short for Inner Genius.\n\nEvery one of us has Genius living inside — often untapped. As Wayne Dyer once said, \"Some people die with the music still in them.\" InnerGen exists so that doesn't happen to you.\n\nDon't die with the music still in you. Let's write your music. Let's sing the tune exactly how you were meant to sing it. In other words — let's live the way we were meant to live. Healthy, wealthy, and happy.\n\nInnerGen was created by someone who has studied human development and results since 2020, and who is currently an active consultant and high performance coach. This app is the distillation of that work — made personal, made practical, made for you.\n\nInnerGen is a self-awareness assessment tool designed for personal development purposes. The quiz and personal guides are intended to support reflection, growth, and meaningful action in your life.\n\nInnerGen is not a medical service, psychological treatment, financial advisory service, or substitute for professional advice of any kind. If you are experiencing a mental health crisis or require professional support, please consult a qualified professional." },
           { title: "2. AI-Generated Content", body: "The personal guides delivered through InnerGen are generated using artificial intelligence technology, based on your specific assessment responses. Each guide is unique to your answers at the time of assessment.\n\nWhile every guide is built from a framework grounded in established research in neuroscience, psychology, and behavioral science, the output is generated by AI and has not been reviewed by a licensed professional. Results are for personal development and informational purposes only." },
-          { title: "3. Purchases and Refund Policy", body: "InnerGen offers three personal guide tiers — Spark ($11.95), Rise ($33.95), and Sovereign ($55.95) — each as a one-time purchase.\n\nYour personal guide is generated and delivered digitally and instantly upon confirmed payment. Because each guide is uniquely generated from your personal responses and delivered immediately, we are unable to offer refunds once a guide has been generated and delivered.\n\nIf you experience a genuine technical failure that prevents delivery of your guide after payment, please contact us and we will resolve it promptly.\n\nPayments are processed securely through Stripe. InnerGen does not store your payment information." },
+          { title: "3. Free Access & Voluntary Support", body: "All InnerGen personal guides — Spark, Rise, and Sovereign — are provided completely free of charge. There is no purchase required and no payment information is collected to generate your guide.\n\nIf you find value in InnerGen, you may choose to leave a voluntary donation through our support page. Donations are entirely optional, are not tied to access of any guide, and do not unlock any additional features. Donations are processed securely through Buy Me a Coffee and Stripe. InnerGen does not store your payment information." },
           { title: "4. No Guarantees of Specific Outcomes", body: "InnerGen provides tools, frameworks, and guidance for personal development. We believe deeply in human potential and the value of self-awareness.\n\nHowever, we cannot and do not guarantee specific life outcomes — financial, health-related, relational, or otherwise — as a result of using this application or its guides. Your results depend entirely on your own choices, effort, and circumstances." },
           { title: "5. Intellectual Property", body: "The InnerGen quiz, framework, brand, and application are the intellectual property of InnerGen and its creator. All rights reserved.\n\nYour personal guide is provided for your individual personal use only. You may not reproduce, sell, or distribute the content of your guide commercially." },
-          { title: "6. Privacy", body: "What we collect: Your assessment responses and purchase information.\n\nHow we use it: To generate your personalized guide and process your payment.\n\nWhat we don't do: We do not sell, share, or distribute your personal data to third parties for marketing purposes.\n\nPayment data is handled entirely by Stripe. Please review Stripe's privacy policy for details on payment data handling." },
+          { title: "6. Privacy", body: "What we collect: Your assessment responses.\n\nHow we use it: To generate your personalized guide.\n\nWhat we don't do: We do not sell, share, or distribute your personal data to third parties for marketing purposes. We do not require or collect payment information to provide your guide.\n\nIf you choose to make a voluntary donation, that transaction is handled entirely by Buy Me a Coffee and Stripe. Please review their privacy policies for details on payment data handling." },
           { title: "7. Limitation of Liability", body: "To the fullest extent permitted by applicable law, InnerGen and its creator shall not be liable for any indirect, incidental, or consequential damages arising from your use of this application or its content." },
           { title: "8. Changes to These Terms", body: "We may update these Terms and Conditions from time to time. Continued use of InnerGen after any changes constitutes acceptance of the updated terms." },
           { title: "9. Contact", body: "For questions, technical issues, or concerns, please contact us at:\n\nsupport@innergen.app" },
