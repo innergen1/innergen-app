@@ -110,19 +110,19 @@ YOUR RELATIONSHIP EDGE
 • 4 bullets: strongest relational quality + one way to amplify it, biggest growth edge + one practice to grow it.
 
 YOUR 90-DAY ROADMAP
-• Month 1 — [Theme]: specific weekly focus for ${who}.
-• Month 2 — [Theme]: specific weekly focus building on Month 1.
-• Month 3 — [Theme]: specific weekly focus building on Month 2.
-• One integration practice for the full 90 days.
+• Month 1 — [Theme]: one-line weekly focus. No sub-bullets.
+• Month 2 — [Theme]: one-line weekly focus building on Month 1. No sub-bullets.
+• Month 3 — [Theme]: one-line weekly focus building on Month 2. No sub-bullets.
+• Integration: one daily anchor practice for all 90 days.
 
 YOUR DAILY PRACTICES
-• 5 bullets: practice name + why it works specifically for ${who}'s level + exact daily instruction.
+• 5 bullets max. Each: practice name — why it works for ${who} — exact daily instruction. One line each.
 
 YOUR RESOURCES
-• 5 books + 1 podcast + 1 documentary — one line each explaining exactly why it fits ${who}.
+• 5 books, 1 podcast, 1 documentary. One line each: title — why it fits ${who} right now.
 
 YOUR MONTHLY CHECK-IN QUESTIONS
-• 4 powerful questions designed precisely for ${pos} growth edge.`;
+• 4 questions only. One line each. Direct and specific to ${pos} growth edge.`;
 }
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -322,7 +322,7 @@ export default function InnerGenApp() {
     const prompt = getPrompt(level, points, answerSummary, userName.trim());
 
     await streamBookContent(
-      prompt, 2000,
+      prompt, 3200,
       (text) => setBookContent(text),
       (text) => { setParsedBook(parseBook(text)); setBookLoading(false); setBookPage("cover"); },
       () => { setBookError(true); setBookLoading(false); setBookPage("cover"); }
@@ -741,12 +741,9 @@ export default function InnerGenApp() {
       <BookShell roman="VII" pageNum={7} totalPages={TOTAL_CONTENT} title="Your 90-Day Roadmap & Toolkit" subtitle="The Plan · The Practices · The Questions"
         onPrev={prevBookPage} prevLabel="← Chapter VI" onNext={nextBookPage} nextLabel="Your Next Chapter →" {...shellProps}>
         <BookChapter title="YOUR 90-DAY ROADMAP"             bullets={p["YOUR 90-DAY ROADMAP"]}             color={level.color}/>
-        <div style={{margin:"16px 0"}}><Ornament width={90}/></div>
-        <BookChapter title="YOUR DAILY PRACTICES"            bullets={p["YOUR DAILY PRACTICES"]}            color={T.green}/>
-        <div style={{margin:"16px 0"}}><Ornament width={90}/></div>
-        <BookChapter title="YOUR RESOURCES"                  bullets={p["YOUR RESOURCES"]}                  color={T.blue}/>
-        <div style={{margin:"16px 0"}}><Ornament width={90}/></div>
-        <BookChapter title="YOUR MONTHLY CHECK-IN QUESTIONS" bullets={p["YOUR MONTHLY CHECK-IN QUESTIONS"]} color={T.goldDim}/>
+        {p["YOUR DAILY PRACTICES"]?.length > 0 && <><div style={{margin:"16px 0"}}><Ornament width={90}/></div><BookChapter title="YOUR DAILY PRACTICES" bullets={p["YOUR DAILY PRACTICES"]} color={T.green}/></>}
+        {p["YOUR RESOURCES"]?.length > 0 && <><div style={{margin:"16px 0"}}><Ornament width={90}/></div><BookChapter title="YOUR RESOURCES" bullets={p["YOUR RESOURCES"]} color={T.blue}/></>}
+        {p["YOUR MONTHLY CHECK-IN QUESTIONS"]?.length > 0 && <><div style={{margin:"16px 0"}}><Ornament width={90}/></div><BookChapter title="YOUR MONTHLY CHECK-IN QUESTIONS" bullets={p["YOUR MONTHLY CHECK-IN QUESTIONS"]} color={T.goldDim}/></>}
       </BookShell>
     );
 
