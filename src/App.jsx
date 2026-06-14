@@ -35,8 +35,8 @@ const LEVELS = [
 function getLevel(pts) { return LEVELS.find(l => pts >= l.min && pts <= l.max) || LEVELS[0]; }
 
 // ─── BOOK PAGES ORDER ─────────────────────────────────────────────────────────
-const BOOK_PAGES = ["cover","intro","p1","p2","p3","p4","p5","p6","p7","closing","final"];
-const CONTENT_PAGES = ["p1","p2","p3","p4","p5","p6","p7"];
+const BOOK_PAGES = ["cover","intro","p1","p2","p3","p4","p5","p6","closing","final"];
+const CONTENT_PAGES = ["p1","p2","p3","p4","p5","p6"];
 const TOTAL_CONTENT = CONTENT_PAGES.length;
 
 // ─── BOOK SECTIONS ────────────────────────────────────────────────────────────
@@ -107,22 +107,7 @@ YOUR WEALTH MINDSET
 • 4 bullets: how ${pos} specific thinking patterns at score ${points}/32 affect money outcomes, and 3 precise mindset shifts.
 
 YOUR RELATIONSHIP EDGE
-• 4 bullets: strongest relational quality + one way to amplify it, biggest growth edge + one practice to grow it.
-
-YOUR 90-DAY ROADMAP
-• Month 1 — [Theme]: one-line weekly focus. No sub-bullets.
-• Month 2 — [Theme]: one-line weekly focus building on Month 1. No sub-bullets.
-• Month 3 — [Theme]: one-line weekly focus building on Month 2. No sub-bullets.
-• Integration: one daily anchor practice for all 90 days.
-
-YOUR DAILY PRACTICES
-• 5 bullets max. Each: practice name — why it works for ${who} — exact daily instruction. One line each.
-
-YOUR RESOURCES
-• 5 books, 1 podcast, 1 documentary. One line each: title — why it fits ${who} right now.
-
-YOUR MONTHLY CHECK-IN QUESTIONS
-• 4 questions only. One line each. Direct and specific to ${pos} growth edge.`;
+• 4 bullets: strongest relational quality + one way to amplify it, biggest growth edge + one practice to grow it.`;
 }
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -322,7 +307,7 @@ export default function InnerGenApp() {
     const prompt = getPrompt(level, points, answerSummary, userName.trim());
 
     await streamBookContent(
-      prompt, 3200,
+      prompt, 2000,
       (text) => setBookContent(text),
       (text) => { setParsedBook(parseBook(text)); setBookLoading(false); setBookPage("cover"); },
       () => { setBookError(true); setBookLoading(false); setBookPage("cover"); }
@@ -731,19 +716,8 @@ export default function InnerGenApp() {
     // p6 — VI: RELATIONSHIP EDGE
     if (bookPage==="p6") return (
       <BookShell roman="VI" pageNum={6} totalPages={TOTAL_CONTENT} title="Your Relationship Edge" subtitle="How You Connect · How You Grow"
-        onPrev={prevBookPage} prevLabel="← Chapter V" onNext={nextBookPage} nextLabel="Chapter VII →" {...shellProps}>
+        onPrev={prevBookPage} prevLabel="← Chapter V" onNext={nextBookPage} nextLabel="Your Next Chapter →" {...shellProps}>
         <BookChapter title="YOUR RELATIONSHIP EDGE" bullets={p["YOUR RELATIONSHIP EDGE"]} color={T.blue}/>
-      </BookShell>
-    );
-
-    // p7 — VII: ROADMAP + PRACTICES + RESOURCES + CHECK-IN
-    if (bookPage==="p7") return (
-      <BookShell roman="VII" pageNum={7} totalPages={TOTAL_CONTENT} title="Your 90-Day Roadmap & Toolkit" subtitle="The Plan · The Practices · The Questions"
-        onPrev={prevBookPage} prevLabel="← Chapter VI" onNext={nextBookPage} nextLabel="Your Next Chapter →" {...shellProps}>
-        <BookChapter title="YOUR 90-DAY ROADMAP"             bullets={p["YOUR 90-DAY ROADMAP"]}             color={level.color}/>
-        {p["YOUR DAILY PRACTICES"]?.length > 0 && <><div style={{margin:"16px 0"}}><Ornament width={90}/></div><BookChapter title="YOUR DAILY PRACTICES" bullets={p["YOUR DAILY PRACTICES"]} color={T.green}/></>}
-        {p["YOUR RESOURCES"]?.length > 0 && <><div style={{margin:"16px 0"}}><Ornament width={90}/></div><BookChapter title="YOUR RESOURCES" bullets={p["YOUR RESOURCES"]} color={T.blue}/></>}
-        {p["YOUR MONTHLY CHECK-IN QUESTIONS"]?.length > 0 && <><div style={{margin:"16px 0"}}><Ornament width={90}/></div><BookChapter title="YOUR MONTHLY CHECK-IN QUESTIONS" bullets={p["YOUR MONTHLY CHECK-IN QUESTIONS"]} color={T.goldDim}/></>}
       </BookShell>
     );
 
